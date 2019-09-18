@@ -1,0 +1,17 @@
+service: py27
+runtime: python27
+api_version: 1
+threadsafe: true
+
+inbound_services:
+- warmup
+
+libraries:
+- name: ssl
+  version: "latest"
+- name: webob
+  version: "1.2.3"
+
+handlers:
+- url: /.*
+  script: main.app
