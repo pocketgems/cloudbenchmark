@@ -31,31 +31,10 @@ function sanitizeUnits(d) {
     return d;
 }
 
-function hrTimeToMillis(hrTime) {
-    return hrTime[0] * 1000 + hrTime[1] / 1000000;
-}
-
 async function benchmark(projectName, service, testName,
                          numConnections, durationSecs, isSummaryDesired) {
     var url = ['https://', service, '-dot-', projectName,
                '.appspot.com/test/' + testName].join('');
-
-    // find best of 10 sequential requests (warms up the instance and tries to
-    // get a rough estimate of best possible performance with no overhead from
-    // competing requests)
-    const NUM_LONE_SAMPLES = 10;
-    var bestMillis = 9999999;
-    for (var i = 0; i < NUM_LONE_SAMPLES; i++) {
-        var start = process.hrtime();
-        let { response, body } = await request.get(url);
-        var end = hrTimeToMillis(process.hrtime());
-        if (response.statusCode === 200) {
-            start = hrTimeToMillis(start);
-            var millisElapsed = end - start;
-            bestMillis = Math.min(millisElapsed, bestMillis);
-        }
-    }
-
     var out = await autocannon({
         connections: numConnections,
         duration: durationSecs,
@@ -65,7 +44,6 @@ async function benchmark(projectName, service, testName,
     out.service = service;
     out.testName = testName;
     out.conns = numConnections;
-    out.bestMillis = bestMillis;
     if (isSummaryDesired) {
         return summarize(out);
     }
@@ -81,7 +59,6 @@ function summarize(result) {
         result.testName,
         result.requests.mean,
         result.throughput.mean / 1000,
-        result.bestMillis,
         result.latency.p50,
         result.latency.p90,
         result.latency.p99,
@@ -110,7 +87,6 @@ async function main(projectName, testName, duration) {
     // display results in a tabular format which can be copied/pasted into a
     // spreadsheet
     console.log(['Time', 'Service', 'Test', 'Req/sec', 'kB/sec',
-                 'Latency (best of 10)',
                  'Latency p50 (ms)', 'Latency p90', 'Latency p99',
                  '# Errors', 'Test Duration (s)', '% Errors',
                  'Timeouts'].join('\t'));
