@@ -45,7 +45,7 @@ resps = [f.result().content.split('\t') for f in futures]
 for i, resp in enumerate(resps):
     best_resp = best_resps[i]
     try:
-        if resp[5] > best_resp[5]:
+        if not resp[5] or (resp[5] > best_resp[5] and best_resp[5]):
             resp[5] = best_resp[5]  # replace best latency
     except:
         print 'broken:', resp, best_resp
