@@ -44,7 +44,9 @@ resps = [f.result().content.split('\t') for f in futures]
 # print the test results, using the best performing request for min latency
 for i, resp in enumerate(resps):
     best_resp = best_resps[i]
-    print resp[5], '-->', best_resp[5]
-    if resp[5] > best_resp[5]:
-        resp[5] = best_resp[5]  # replace best latency
+    try:
+        if resp[5] > best_resp[5]:
+            resp[5] = best_resp[5]  # replace best latency
+    except:
+        print 'broken:', resp, best_resp
     print '\t'.join(resp)
