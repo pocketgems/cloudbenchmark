@@ -8,6 +8,7 @@ import requests
 
 
 INSTANCE_CLASSES = ('F1', 'F2', 'F4')
+TESTS = ['noop', 'sleep', 'data', 'cache', 'memcache', 'dbtx', 'txtask']
 
 
 def run(cmd):
@@ -35,17 +36,22 @@ def deploy_gae_standard_python2(project_name):
     py27_cfg_path = os.path.join(py27_dir, 'app.yaml')
     os.chdir(py27_dir)
     for icls in INSTANCE_CLASSES:
-        for suffix in ('one', ''):
-            service = 'py27%s%s' % (icls.lower(), suffix)
-            new_cfg = template_cfg + '\n'.join([
-                'service: ' + service,
-                'instance_class: ' + icls])
-            open(py27_cfg_path, 'w').write(new_cfg)
-            subprocess.check_call([
-                'gcloud', 'app', 'deploy', '--quiet', '--project',
-                project_name, '--version', 'v1'])
-            if suffix == 'one':
-                set_scaling_limit(project_name, service, 1)
+        for limit_to_one_instance in (False, True):
+            if limit_to_one_instance:
+                services = ['py27-%s-solo-%s' % (icls.lower(), test)
+                            for test in TESTS]
+            else:
+                services = ['py27-%s' % icls.lower()]
+            for service in services:
+                new_cfg = template_cfg + '\n'.join([
+                    'service: ' + service,
+                    'instance_class: ' + icls])
+                open(py27_cfg_path, 'w').write(new_cfg)
+                subprocess.check_call([
+                    'gcloud', 'app', 'deploy', '--quiet', '--project',
+                    project_name, '--version', 'v1'])
+                if limit_to_one_instance:
+                    set_scaling_limit(project_name, service, 1)
     os.remove(py27_cfg_path)
 
 

@@ -86,8 +86,8 @@ routes = [
     ('/test/data', GetFakeDataAPI),
     ('/test/cache', CachedAPI),
     ('/test/memcache', MemcacheAPI),
-    ('/test/db_tx', DbTxAPI),
-    ('/test/tx_task', TxTaskAPI),
+    ('/test/dbtx', DbTxAPI),
+    ('/test/txtask', TxTaskAPI),
 ]
 
 app = webapp.WSGIApplication(routes, debug=False)
