@@ -14,7 +14,7 @@ class NoOpAPI(webapp.RequestHandler):
 class CPUBoundAPI(webapp.RequestHandler):
     """Busy waits for `s` seconds."""
     def get(self):
-        end_time = time.time() + float(self.request.get('s'))
+        end_time = time.time() + float(self.request.get('s', 1))
         while time.time() < end_time:
             pass
 
@@ -22,20 +22,20 @@ class CPUBoundAPI(webapp.RequestHandler):
 class SleepAPI(webapp.RequestHandler):
     """Sleeps for `s` seconds."""
     def get(self):
-        time.sleep(float(self.request.get('s')))
+        time.sleep(float(self.request.get('s', 1)))
 
 
 class GetFakeDataAPI(webapp.RequestHandler):
     """Returns `sz` bytes of junk data."""
     def get(self):
-        self.response.out.write('x' * int(self.request.get('sz')))
+        self.response.out.write('x' * int(self.request.get('sz', 2**20)))
 
 
 class CachedAPI(webapp.RequestHandler):
     """Sets cache-control header."""
     def get(self):
-        data = 'x' * int(self.request.get('sz'))
-        self.response.headers['Cache-Control'] = 'max-age=60, public'
+        data = 'x' * int(self.request.get('sz', 2**20))
+        self.response.headers['Cache-Control'] = 'max-age=360, public'
         return data
 
 
@@ -43,7 +43,7 @@ class MemcacheAPI(webapp.RequestHandler):
     """Puts `sz` bytes into memcache and gets it `n` times sequentially."""
     def get(self):
         key = uuid.uuid4().hex
-        memcache.set(key, 'x' * int(self.request.get('sz')), time=60)
+        memcache.set(key, 'x' * int(self.request.get('sz', 10240)), time=60)
         for ignore in xrange(int(self.request.get('n'))):
             memcache.get(key)
 
@@ -51,7 +51,7 @@ class MemcacheAPI(webapp.RequestHandler):
 class DbTxAPI(webapp.RequestHandler):
     """Does `n` sequential datastore transactions. No contention."""
     def get(self):
-        for ignore in xrange(int(self.request.get('n'))):
+        for ignore in xrange(int(self.request.get('n', 5))):
             random_id = uuid.uuid4().hex
             self.incr(random_id)
 
@@ -74,7 +74,7 @@ class TxTaskAPI(DbTxAPI):
     @staticmethod
     @ndb.transactional
     def incr(some_id):
-        task = taskqueue.Task(url='/test/task', payload='x' * 128)
+        task = taskqueue.Task(url='/test/task', payload='x' * 512)
         futures = [task.add_async(queue_name='test',
                                   rpc=taskqueue.create_rpc(),
                                   transactional=True)]
