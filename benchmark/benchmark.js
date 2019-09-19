@@ -5,32 +5,6 @@ const servicesToTest = [
     'py27f1one', 'py27f2one', 'py27f4one'
 ];
 
-// put sizes in bytes and durations in milliseconds
-function sanitizeUnits(d) {
-    for (var k in d) {
-        var v = d[k];
-        if (typeof v === 'number') {
-            continue;
-        }
-        if (v.endsWith('ms')) {
-            d[k] = +v.substring(0, v.length - 2);
-        }
-        else if (v.endsWith('s')) {
-            d[k] = 1000 * (+v.substring(0, v.length - 1));
-        }
-        else if (v.endsWith('m')) {
-            d[k] = 60 * 1000 * (+v.substring(0, v.length - 1));
-        }
-        else if (v.endsWith('KB')) {
-            d[k] = 1024 * (+v.substring(0, v.length - 2));
-        }
-        else if (v.endsWith('MB')) {
-            d[k] = 1024 * 1024 * (+v.substring(0, v.length - 2));
-        }
-    }
-    return d;
-}
-
 async function benchmark(projectName, service, testName,
                          numConnections, durationSecs, isSummaryDesired) {
     var url = ['https://', service, '-dot-', projectName,
