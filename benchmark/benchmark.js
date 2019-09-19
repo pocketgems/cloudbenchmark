@@ -64,7 +64,8 @@ function summarize(result) {
         result.latency.p99,
         result.errors,
         result.duration,
-        result.errors / result.requests.total,
+        result.non2xx / result.requests.total,
+        result.requests.timeouts,
     ].join('\t');
 };
 
@@ -87,7 +88,8 @@ async function main(projectName, testName, duration) {
     // spreadsheet
     console.log(['Time', 'Service', 'Test', 'Req/sec', 'kB/sec',
                  'Latency p50 (ms)', 'Latency p90', 'Latency p99',
-                 '# Errors', 'Test Duration (s)', '% Errors'].join('\t'));
+                 '# Errors', 'Test Duration (s)', '% Errors',
+                 'Timeouts'].join('\t'));
     for (var i in results) {
         console.log(summarize(results[i]));
     }
