@@ -59,6 +59,7 @@ function summarize(result) {
         result.testName,
         result.requests.mean,
         result.throughput.mean / 1000,
+        result.latency.min,
         result.latency.p50,
         result.latency.p90,
         result.latency.p99,
@@ -87,7 +88,8 @@ async function main(projectName, testName, duration) {
     // display results in a tabular format which can be copied/pasted into a
     // spreadsheet
     console.log(['Time', 'Service', 'Test', 'Req/sec', 'kB/sec',
-                 'Latency p50 (ms)', 'Latency p90', 'Latency p99',
+                 'Latency (best, ms)',
+                 'Latency p50', 'Latency p90', 'Latency p99',
                  '# Errors', 'Test Duration (s)', '% Errors',
                  'Timeouts'].join('\t'));
     for (var i in results) {
