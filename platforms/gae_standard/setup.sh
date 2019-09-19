@@ -8,7 +8,9 @@ if [ -z $PROJECTNAME ]; then
     exit 1
 fi
 
-sudo pip install --upgrade google-auth-oauthlib requests grequests
+pip install --upgrade google-auth-oauthlib requests requests-futures
+gcloud components install beta
+gcloud components update
 gcloud config set project $PROJECTNAME
 gcloud auth application-default login
 ./deploy.py $PROJECTNAME
