@@ -10,33 +10,9 @@ exports.runBenchmark = (req, res) => {
         res.status(400).send('missing required param');
         return;
     }
-    benchmark(projectName, service, testName, numConns, secs + 's', (err, out) => {
-        if (err) {
-            console.log(err);
-            console.log(out);
-            res.status(500).send('error: ' + err);
-            return;
-        }
-        var finishedAt = new Date().toUTCString();
-        var result = out.results;
-        var numErrors = (+(result.connectErrors || 0)) +
-            (+(result.readErrors || 0)) +
-            (+(result.writeErrors || 0)) +
-            (+(result.timeoutErrors || 0)) +
-            (+(result.non2xx3xx || 0));
-        var output = [
-            finishedAt,
-            out.service,
-            out.testName,
-            result.requestsPerSec,
-            result.transferPerSec,
-            result.latency50,
-            result.latency90,
-            result.latency99,
-            numErrors,
-            result.durationActual,
-            numErrors / result.requestsTotal,
-        ].join('\t');
-        res.send(output);
+    benchmark(projectName, service, testName, numConns, secs, true).then(out => {
+        res.send(out);
+    }, err => {
+        res.status(500).send('failed: ' + err);
     });
 };

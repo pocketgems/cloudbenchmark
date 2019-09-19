@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const wrk = require('wrk');
+const autocannon = require('autocannon');
 
 const servicesToTest = [
     'py27f1one', 'py27f2one', 'py27f4one'
@@ -31,30 +31,44 @@ function sanitizeUnits(d) {
     return d;
 }
 
-function benchmark(projectName, service, testName,
-                   numConnections, duration, resolve) {
+async function benchmark(projectName, service, testName,
+                         numConnections, durationSecs, isSummaryDesired) {
     var url = ['https://', service, '-dot-', projectName,
                '.appspot.com/test/' + testName].join('');
-    var numThreads = Math.max(1, Math.min(16, Math.floor(numConnections / 4)));
-    wrk({
-        threads: numThreads,
+    var out = await autocannon({
         connections: numConnections,
-        duration: duration,
-        printLatency: true,
+        duration: durationSecs,
+        pipelining: 1,
         url: url
-    }, function(err, out) {
-        if (!err) {
-            out = {
-                url: url, service: service, testName: testName,
-                threads: numThreads, conns: numConnections,
-                results: sanitizeUnits(out)
-            };
-        }
-        resolve(err, out);
     });
+    out.service = service;
+    out.testName = testName;
+    out.conns = numConnections;
+    if (isSummaryDesired) {
+        return summarize(out);
+    }
+    return out;
 }
 
-function main(projectName, testName, duration) {
+// convert result dict to a tab-separated string (for copy/pasting into a
+// spreadsheet)
+function summarize(result) {
+    return [
+        result.finish.toUTCString(),
+        result.service,
+        result.testName,
+        result.requests.mean,
+        result.throughput.mean / 1000,
+        result.latency.p50,
+        result.latency.p90,
+        result.latency.p99,
+        result.errors,
+        result.duration,
+        result.errors / result.requests.total,
+    ].join('\t');
+};
+
+async function main(projectName, testName, duration) {
     if (!projectName || !testName || !duration) {
         throw 'missing required command-line arg(s)';
     }
@@ -62,49 +76,20 @@ function main(projectName, testName, duration) {
     // test each service sequentially
     var serviceIdx = 0;
     var results = [];
-    function doWork() {
+    for (var i = 0; i < servicesToTest.length; i++) {
         var service = servicesToTest[serviceIdx++];
-        if (!service) {
-            return displayResults();
-        }
-        benchmark(projectName, service, testName, 64, duration, function(err, out) {
-            if (err) {
-                throw err;
-            }
-            console.log(out);
-            results.push(out);
-            doWork();
-        });
+        var out = await benchmark(projectName, service, testName, 64, duration);
+        console.log(service, out.requests.mean, out.latency.p50);
+        results.push(out);
     }
-    doWork();
 
     // display results in a tabular format which can be copied/pasted into a
     // spreadsheet
-    function displayResults() {
-        var finishedAt = new Date().toUTCString();
-        console.log(['Time', 'Service', 'Test', 'RPS', 'bytes/sec',
-                     'Latency 50th (ms)', 'Latency 90th', 'Latency 99th',
-                     '# Errors', 'Test Duration (ms)'].join('\t'));
-        for (var idx in results) {
-            var out = results[idx];
-            var result = out.results;
-            console.log([
-                finishedAt,
-                out.service,
-                out.testName,
-                result.requestsPerSec,
-                result.transferPerSec,
-                result.latency50,
-                result.latency90,
-                result.latency99,
-                (+(result.connectErrors || 0)) +
-                    (+(result.readErrors || 0)) +
-                    (+(result.writeErrors || 0)) +
-                    (+(result.timeoutErrors || 0)) +
-                    (+(result.non2xx3xx || 0)),
-                result.durationActual,
-            ].join('\t'));
-        }
+    console.log(['Time', 'Service', 'Test', 'Req/sec', 'kB/sec',
+                 'Latency p50 (ms)', 'Latency p90', 'Latency p99',
+                 '# Errors', 'Test Duration (s)', '% Errors'].join('\t'));
+    for (var i in results) {
+        console.log(summarize(results[i]));
     }
 }
 
