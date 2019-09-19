@@ -81,7 +81,7 @@ function main(projectName, testName, duration) {
     // display results in a tabular format which can be copied/pasted into a
     // spreadsheet
     function displayResults() {
-        var finishedAt = new Date();
+        var finishedAt = new Date().toUTCString();
         console.log(['Time', 'Service', 'Test', 'RPS', 'bytes/sec',
                      'Latency 50th (ms)', 'Latency 90th', 'Latency 99th',
                      '# Errors', 'Test Duration (ms)'].join('\t'));
@@ -108,4 +108,7 @@ function main(projectName, testName, duration) {
     }
 }
 
-main.apply(null, process.argv.slice(process.argv.length - 3));
+if (require.main === module) {
+    main.apply(null, process.argv.slice(process.argv.length - 3));
+}
+exports.benchmark = benchmark;
