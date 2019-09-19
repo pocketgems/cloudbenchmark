@@ -36,7 +36,7 @@ class MemcacheAPI(webapp.RequestHandler):
     def get(self):
         key = uuid.uuid4().hex
         memcache.set(key, 'x' * int(self.request.get('sz', 10240)), time=60)
-        for ignore in xrange(int(self.request.get('n'))):
+        for ignore in xrange(int(self.request.get('n', 10))):
             memcache.get(key)
 
 
