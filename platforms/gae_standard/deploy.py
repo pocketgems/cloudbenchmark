@@ -23,6 +23,12 @@ def deploy_gae_standard_python2(project_name):
     instance performance).
     """
     root_dir = os.path.abspath(os.path.dirname(__file__))
+    # a default module is required, so deploy an empty app to it
+    os.chdir(os.path.join(root_dir, 'default'))
+    subprocess.check_call([
+        'gcloud', 'app', 'deploy', '--quiet', '--project',
+        project_name, '--version', 'v1'])
+    # deploy a variety of configurations of our python 2.7 app
     py27_dir = os.path.join(root_dir, 'py27')
     py27_cfg_template_path = os.path.join(py27_dir, 'template.yaml')
     template_cfg = open(py27_cfg_template_path, 'r').read()
