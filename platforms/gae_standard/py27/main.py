@@ -68,8 +68,8 @@ class TxTaskAPI(DbTxAPI):
     def incr(some_id):
         # run the task on another service; when benchmarking we only want to
         # measure the instance handling this API (not the tasks it generates)
-        task = taskqueue.Task(url='/test/noop', payload='x' * 512,
-                              target='v1.py27-noop')
+        task = taskqueue.Task(url='/thisWill404', payload='x' * 512,
+                              target='v1.default')
         futures = [task.add_async(queue_name='test',
                                   rpc=taskqueue.create_rpc(),
                                   transactional=True)]
