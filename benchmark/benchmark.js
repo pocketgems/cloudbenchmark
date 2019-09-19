@@ -12,6 +12,7 @@ async function benchmark(projectName, service, testName,
     var out = await autocannon({
         connections: numConnections,
         duration: durationSecs,
+        excludeErrorStats: true,
         pipelining: 1,
         url: url
     });
@@ -37,10 +38,10 @@ function summarize(result) {
         result.latency.p50,
         result.latency.p90,
         result.latency.p99,
-        result.errors,
+        result.non2xx,
         result.duration,
         result.non2xx / result.requests.total,
-        result.requests.timeouts,
+        result.errors,
     ].join('\t');
 };
 
