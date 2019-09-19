@@ -29,12 +29,15 @@ def deploy_gae_standard_python2(project_name):
     subprocess.check_call([
         'gcloud', 'app', 'deploy', '--quiet', '--project',
         project_name, '--version', 'v1'])
-    # deploy a variety of configurations of our python 2.7 app
+    # deploy the task queue configuration
     py27_dir = os.path.join(root_dir, 'py27')
+    os.chdir(py27_dir)
+    subprocess.check_call(['gcloud', 'app', 'deploy', 'queue.yaml', '--quiet',
+                           '--project', project_name])
+    # deploy a variety of configurations of our python 2.7 app
     py27_cfg_template_path = os.path.join(py27_dir, 'template.yaml')
     template_cfg = open(py27_cfg_template_path, 'r').read()
     py27_cfg_path = os.path.join(py27_dir, 'app.yaml')
-    os.chdir(py27_dir)
     for icls in INSTANCE_CLASSES:
         for limit_to_one_instance in (False, True):
             if limit_to_one_instance:
