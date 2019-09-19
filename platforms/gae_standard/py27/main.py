@@ -28,7 +28,7 @@ class CachedAPI(webapp.RequestHandler):
     def get(self):
         data = 'x' * int(self.request.get('sz', 2**20))
         self.response.headers['Cache-Control'] = 'max-age=360, public'
-        return data
+        self.response.out.write(data)
 
 
 class MemcacheAPI(webapp.RequestHandler):
