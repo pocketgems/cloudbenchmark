@@ -52,7 +52,7 @@ class DbTxAPI(webapp.RequestHandler):
     def incr(some_id):
         x = Counter.get_by_id(some_id)
         if not x:
-            x = Counter()
+            x = Counter(id=some_id)
         x.count += 1
         x.put()
 
@@ -72,7 +72,7 @@ class TxTaskAPI(DbTxAPI):
                                   transactional=True)]
         x = Counter.get_by_id(some_id)
         if not x:
-            x = Counter()
+            x = Counter(id=some_id)
         x.count += 1
         futures.append(x.put_async())
         for f in futures:
