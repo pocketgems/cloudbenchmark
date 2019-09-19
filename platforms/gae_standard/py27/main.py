@@ -11,14 +11,6 @@ class NoOpAPI(webapp.RequestHandler):
         return
 
 
-class CPUBoundAPI(webapp.RequestHandler):
-    """Busy waits for `s` seconds."""
-    def get(self):
-        end_time = time.time() + float(self.request.get('s', 1))
-        while time.time() < end_time:
-            pass
-
-
 class SleepAPI(webapp.RequestHandler):
     """Sleeps for `s` seconds."""
     def get(self):
@@ -90,7 +82,6 @@ class TxTaskAPI(DbTxAPI):
 routes = [
     ('/_ah/warmup', NoOpAPI),
     ('/test/noop', NoOpAPI),
-    ('/test/cpu', CPUBoundAPI),
     ('/test/sleep', SleepAPI),
     ('/test/data', GetFakeDataAPI),
     ('/test/cache', CachedAPI),
