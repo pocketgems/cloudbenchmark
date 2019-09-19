@@ -2,7 +2,7 @@
 const autocannon = require('autocannon');
 
 const servicesToTest = [
-    'py27f1one', 'py27f2one', 'py27f4one'
+    'py27-f1-solo-noop',
 ];
 
 async function benchmark(projectName, service, testName,
