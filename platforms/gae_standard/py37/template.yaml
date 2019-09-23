@@ -1,0 +1,29 @@
+runtime: python37
+
+inbound_services:
+- warmup
+
+handlers:
+- url: /.*
+  script: auto
+
+service: py37-f1
+instance_class: F1
+
+# different processes
+entrypoint: gunicorn --preload --worker-class=sync    --workers=1             --bind=:8080 main:app
+entrypoint: gunicorn --preload --worker-class=sync    --workers=2             --bind=:8080 main:app
+entrypoint: gunicorn --preload --worker-class=sync    --workers=3             --bind=:8080 main:app
+
+# threads are lighter weight; blocking I/O = blocked thread
+entrypoint: gunicorn --preload --worker-class=gthread --workers=1 --threads=3 --bind=:8080 main:app
+entrypoint: gunicorn --preload --worker-class=gthread --workers=2 --threads=2 --bind=:8080 main:app
+
+# workers = parallelism (use the CPUs) ... gevent = concurrency (unlikely to idle blocked on I/O)
+entrypoint: gunicorn --preload --worker-class=gevent  --workers=1 --worker-connections=81 --bind=:8080 main:app
+entrypoint: gunicorn --preload --worker-class=gevent  --workers=2 --worker-connections=41 --bind=:8080 main:app
+entrypoint: gunicorn --preload --worker-class=gevent  --workers=3 --worker-connections=27 --bind=:8080 main:app
+
+automatic_scaling:
+  max_concurrent_requests: 80
+  max_instances: 1

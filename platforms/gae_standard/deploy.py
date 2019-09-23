@@ -58,6 +58,14 @@ def deploy_gae_standard_python2(project_name):
     os.remove(py27_cfg_path)
 
 
+def deploy_gae_standard_python3(project_name):
+    root_dir = os.path.abspath(os.path.dirname(__file__))
+    py37_dir = os.path.join(root_dir, 'py37')
+    py37_cfg_template_path = os.path.join(py27_dir, 'template-with-redis.yaml')
+    template_cfg = open(py27_cfg_template_path, 'r').read()
+    os.chdir(py37_dir)
+
+
 def set_scaling_limit(project_name, service, limit):
     import google.auth
     import google.auth.transport.requests

@@ -1,0 +1,5 @@
+.git
+.gitignore
+*.pyc
+template.yaml
+template-with-redis.yaml
