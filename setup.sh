@@ -38,6 +38,47 @@ gcloud projects create $PROJECTNAME --set-as-default --organization $ORGID
 gcloud beta billing projects link $PROJECTNAME --billing-account=$ACCOUNTID
 
 gcloud app create --region=us-central
+
+echo "Please be patient; setting up Memorystore (Redis) is quite slow ..."
+gcloud services enable redis.googleapis.com
+gcloud redis instances create testcluster --size=1 --region=us-central1 \
+    --zone=us-central1-a --tier=STANDARD
+redishost="$(gcloud redis instances describe testcluster --region=us-central1 \
+                    | fgrep host | cut -d: -f2 | cut -d' ' -f2)"
+redisport="$(gcloud redis instances describe testcluster --region=us-central1 \
+                    | fgrep port | cut -d: -f2 | cut -d' ' -f2)"
+redisnet="$(gcloud redis instances describe testcluster --region=us-central1 \
+                    | fgrep authorizedNetwork | cut -d: -f2 | cut -d' ' -f2)"
+
+gcloud services enable vpcaccess.googleapis.com
+gcloud beta compute networks vpc-access connectors create conntest \
+    --network default --region us-central1 --range 10.8.0.0/28
+
+vpcname="$(gcloud beta compute networks vpc-access connectors describe \
+                  conntest --region us-central1 \
+                    | fgrep name | cut -d: -f2 | cut -d' ' -f2)"
+py37cfgFN=./platforms/gae_standard/py37/template-with-redis.yaml
+cp ./platforms/gae_standard/py37/template.yaml $py37cfgFN
+echo "vpc_access_connector:" >> $py37cfgFN
+echo "  name: $vpcname" >> $py37cfgFN
+echo "env_variables:" >> $py37cfgFN
+echo "  REDIS_HOST: \"$redishost\"" >> $py37cfgFN
+echo "  REDIS_PORT: \"$redisport\"" >> $py37cfgFN
+
+echo "setting up Cloud Tasks ..."
+gcloud services enable cloudtasks.googleapis.com
+gcloud services enable tasks.googleapis.com
+gcloud iam service-accounts create testcloudtasks
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member "serviceAccount:testcloudtasks@$PROJECTNAME.iam.gserviceaccount.com" \
+    --role "roles/cloudtasks.admin"
+gcloud iam service-accounts keys create \
+    platforms/gae_standard/py37/cloudtasksaccount.json \
+    --iam-account testcloudtasks@$PROJECTNAME.iam.gserviceaccount.com
+gcloud tasks queues create testpy3 \
+     --max-concurrent-dispatches=0 \
+     --max-attempts=0
+
 ./platforms/gae_standard/deploy.py $PROJECTNAME
 pushd benchmark
 ./deploy.sh
