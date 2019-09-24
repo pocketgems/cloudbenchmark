@@ -76,7 +76,7 @@ def CachedAPI():
 def MemcacheAPI():
     """Puts `sz` bytes into memcache and gets it `n` times sequentially."""
     key = uuid.uuid4().hex
-    val = 'x' * int(request.args.get('sz', 10240))
+    val = b'x' * int(request.args.get('sz', 10240))
     rcache.set(key, val, ex=60)
     for ignore in range(int(request.args.get('n', 10))):
         assert rcache.get(key) == val
