@@ -1,12 +1,39 @@
-import logging
 import os
-import time
-import uuid
-
+APP_ID = os.environ.get('GAE_APPLICATION', '').replace('s~', '')
 if __name__ != '__main__':
-    # don't log to stackdriver from localhost
     import google.cloud.logging
-    google.cloud.logging.Client().setup_logging(log_level=logging.DEBUG)
+    from google.cloud.logging.resource import Resource
+    log_client = google.cloud.logging.Client()
+    log_name = 'appengine.googleapis.com%2Fstdout'
+    res = Resource(type='gae_app',
+                   labels=dict(
+                       project_id=APP_ID,
+                       module_id=os.environ.get('GAE_SERVICE', '')))
+    logger = log_client.logger(log_name)
+    def log(severity, msg, *args):
+        msg = msg % args
+        if severity == logging.DEBUG:
+            severity = 'DEBUG'
+        elif severity == logging.INFO:
+            severity = 'INFO'
+        elif severity == logging.WARN:
+            severity = 'WARN'
+        elif severity == logging.ERROR:
+            severity = 'ERROR'
+        elif severity == logging.CRITICAL:
+            severity = 'CRITICAL'
+        else:
+            raise RuntimeError('unknown severity for log: %s' % msg)
+        logger.log_struct({'message': msg}, resource=res, severity=severity)
+else:
+    import logging
+    def log(severity, msg, *args):
+        logging.log(severity, msg, *args)
+
+
+import time
+import traceback
+import uuid
 
 from flask import Flask, request, Response
 from google.cloud import datastore as db, tasks_v2
@@ -24,9 +51,8 @@ def handle_500(e):
         # direct 500 error, such as abort(500)
         return 'direct 500 error', 500
     # unhandled error
-    logging.error(str(e))
-    logging.exception(original)
-    return str(e), 500
+    log(logging.ERROR, traceback.format_exc(original))
+    return '', 500
 
 
 dbc = db.Client()
@@ -34,7 +60,7 @@ if 'REDIS_HOST' in os.environ:
     rcache = redis.Redis(host=os.environ['REDIS_HOST'],
                          port=int(os.environ['REDIS_PORT']))
 else:
-    logging.warn('missing redis creds')
+    log(logging.WARN, 'missing redis creds')
 taskq = tasks_v2.CloudTasksClient.from_service_account_json(
     'cloudtasksaccount.json')
 MAX_REQUEST_DURATION_SECS = 60  # on GAE standard
@@ -42,6 +68,12 @@ MAX_REQUEST_DURATION_SECS = 60  # on GAE standard
 
 @app.route('/_ah/warmup')
 def WarmupAPI():
+    return ''
+
+
+@app.route('/test/log')
+def TestLogsAPI():
+    log(logging.CRITICAL, 'hello world')
     return ''
 
 
@@ -99,7 +131,7 @@ def TxTaskAPI():
     for ignore in range(int(request.args.get('n', 5))):
         tx_id = uuid.uuid4().hex
         fq_queue_name = taskq.queue_path(
-            os.environ.get('GAE_APPLICATION', '').replace('s~', ''),
+            APP_ID,
             'us-central1',
             'testpy3')  # this is the queue name
         task = dict(
