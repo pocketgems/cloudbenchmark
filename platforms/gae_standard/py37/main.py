@@ -144,7 +144,6 @@ def incr_db_entry(some_id):
 @app.route('/handleTxTask', methods=['POST'])
 def handle_tx_task():
     tx_id = request.headers['TXID']
-    payload = request.get_data(as_text=True)
     with dbc.transaction():
         key = dbc.key('TxDoneSentinel', tx_id)
         sentinel = dbc.get(key)
