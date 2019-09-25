@@ -1,1 +1,3 @@
+.gitignore
+template.yaml
 webapp_main.py
