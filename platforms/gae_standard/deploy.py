@@ -29,8 +29,11 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
         else:
             entrypoint_cfg = 'entrypoint: ' + entrypoint.command
         for test in tests if not is_default else [None]:
-            if test:
-                version = '-'.join([framework, entrypoint.name, test])
+            if not is_default:
+                if test:
+                    version = '-'.join([framework, entrypoint.name, test])
+                else:
+                    version = entrypoint.name
                 cfg = self.cfg + '\n'.join([
                     'service: ' + service,
                     entrypoint_cfg,
@@ -45,7 +48,7 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
             # beta app deploy is required to use VPC connector (for Redis)
             # which is required by new GAE runtimes (all but python 2.7)
             if 'runtime: python27' not in cfg:
-                cmd.insert(2, 'beta')
+                cmd.insert(1, 'beta')
             self.deployments.append(PendingDeployment(
                 framework, version, service, cfg, cmd, post))
 
@@ -56,7 +59,7 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
             open('app.yaml', 'w').write(pd.cfg)
             subprocess.check_call(pd.deploy_cmd)
             if pd.post_deploy:
-                pd.post_deploy(pd.service)
+                pd.post_deploy(pd.service, pd.version)
             count += 1
             print 'deployment #%d completed' % count
         return count
@@ -136,27 +139,23 @@ def queue_gae_standard_python2_deployments(deployer):
     """
     # deploy a variety of configurations of our python 2.7 app
     for icls in INSTANCE_CLASSES:
-        name = 'py27-%s-solo' % icls.lower()
-        deployer.add_deploy('py27', 'webapp', Entrypoint(name, None),
-                            post=lambda service: set_scaling_limit(
-                                deployer.project_name, service, 1))
+        name = icls.lower() + '-solo'
+        deployer.add_deploy('py27', 'webapp', Entrypoint(name, None), TESTS,
+                            post=lambda service, version: set_scaling_limit(
+                                deployer.project_name, service, version, 1))
 
 
 def get_entrypoints_for_py3():
     """Returns entrypoints to test.
 
-    py37taskhandler service - handles the tx tasks
-
     Threaded tests try 1 and 2 workers (with 3 threads per worker).
 
     Non-threaded tests (processes & greenlets) try 1, 2 and 3 workers.
       gunicorn - sync, gevent, meinheld, uvicorn, and app engine default
-      uwsgi - processes, gevent
+      uwsgi - processes, gevent (only for workers==2)
 
-    Using a narrower set of 4 tests due to GAE only allowing 105 versions.
-    Total Versions = 1 + (2 threaded * 2 + 3 non-threaded * (5 + 2)) * 4 tests
-                   = 1 + (1 + 4 + 18) * 4 = 93
-    Only run uwsgi processes for workers==2 (not 1 or 3) => -2*4 => 85 versions
+    Each test is run with 2 different frameworks (Falcon and Flask) except
+    uvicorn which is run with only 1 framework (FastAPI).
     """
     entrypoints = [
         Entrypoint('gunicorn-default', ''),  # use the default
@@ -213,10 +212,12 @@ def queue_gae_standard_python3_deployments(deployer):
     """Prepares python 3.7 services.
 
     Only deploys to one instance class. Varies server entrypoint instead.
+
+    Total Versions = 156
     """
     # deploy a service to drain the tx task queue
     deployer.add_deploy(
-        'py37', 'flask', Entrypoint('py3taskhandler', None), [None])
+        'py37', 'flask', Entrypoint('txtaskhandler', None), [None])
 
     # deploy a service for each desired entrypoint X framework X test combo
     for entrypoint in get_entrypoints_for_py3():
@@ -228,7 +229,7 @@ def queue_gae_standard_python3_deployments(deployer):
             deployer.add_deploy('py37', framework, entrypoint)
 
 
-def set_scaling_limit(project_name, service, limit):
+def set_scaling_limit(project_name, service, version, limit):
     import google.auth
     import google.auth.transport.requests
     creds = google.auth.default()[0]
@@ -242,16 +243,16 @@ def set_scaling_limit(project_name, service, limit):
     data = json.dumps(dict(automaticScaling=dict(
         standardSchedulerSettings=dict(
             maxInstances=limit))))
-    print 'setting max instances to 1 for', service
+    print 'setting max instances to 1 for', service, version
     host = 'appengine.googleapis.com'
-    path = '/v1/apps/%s/services/%s/versions/v1' % (
-        project_name, service)
+    path = '/v1/apps/%s/services/%s/versions/%s' % (
+        project_name, service, version)
     mask = 'automaticScaling.standard_scheduler_settings.max_instances'
     url = 'https://%s%s?updateMask=%s' % (host, path, mask)
     resp = requests.patch(url, data=data, headers=headers)
     if resp.status_code != 200:
-        raise Exception('setting max instances failed %s %d %s' % (
-            service, resp.status_code, resp.text))
+        raise Exception('setting max instances failed %s %s %d %s' % (
+            service, version, resp.status_code, resp.text))
 
 
 def main():

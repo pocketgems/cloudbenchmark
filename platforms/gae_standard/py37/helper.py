@@ -86,8 +86,8 @@ def do_tx_task(n):
                 relative_uri='/handleTxTask',
                 body=('x' * 512).encode(),  # encode to bytes
                 app_engine_routing=dict(
-                    service='py3taskhandler',
-                    version='v1',
+                    service='py3',
+                    version='txtaskhandler',
                 ),
                 headers=dict(
                     TXID=tx_id,
