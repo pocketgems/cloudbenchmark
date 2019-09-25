@@ -22,34 +22,34 @@ PendingDeployment = namedtuple('PendingDeployment', (
 
 class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
     def add_deploy(self, project_name, framework, entrypoint, tests, post):
+        is_default = (entrypoint.name == 'default')
         service = self.name
-        for test in tests or [None]:
+        if not entrypoint.command:
+            entrypoint_cfg = ''
+        else:
+            entrypoint_cfg = 'entrypoint: ' + entrypoint.command
+        for test in tests if not is_default else [None]:
             if test:
                 version = '-'.join([framework, entrypoint.name, test])
-            else:
-                version = entrypoint.name
-            if not entrypoint.command:
-                entrypoint_cfg = ''
-            else:
-                entrypoint_cfg = 'entrypoint: ' + entrypoint.command
-            if entrypoint.name == 'default':
-                cfg = self.cfg  # default is implied
-                assert not entrypoint_cfg
-            else:
                 cfg = self.cfg + '\n'.join([
                     'service: ' + service,
                     entrypoint_cfg,
                 ])
+            else:
+                version = 'vdefault'
+                cfg = self.cfg  # default is implied
+                assert not entrypoint_cfg
             cmd = ['gcloud', 'app', 'deploy', '--quiet',
                    '--project', project_name,
                    '--version', version]
-            # note: beta app deploy required to use VPC connector (for Redis)
-            if self.name not in ('default', 'py27'):
+            # beta app deploy is required to use VPC connector (for Redis)
+            # which is required by new GAE runtimes (all but python 2.7)
+            if 'runtime: python27' not in cfg:
                 cmd.insert(2, 'beta')
             self.deployments.append(PendingDeployment(
                 framework, version, service, cfg, cmd, post))
 
-    def deploy_all(self):
+    def deploy_all(self, count):
         os.chdir(self.path)
         for pd in self.deployments:
             self.__use_framework(self.path, pd.framework)
@@ -57,6 +57,9 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
             subprocess.check_call(pd.deploy_cmd)
             if pd.post_deploy:
                 pd.post_deploy(pd.service)
+            count += 1
+            print 'deployment #%d completed' % count
+        return count
 
     def print_stats(self):
         all_services = set([])
@@ -103,8 +106,9 @@ class GAEStandardDeployer(object):
             self.project_name, framework, entrypoint, tests, post)
 
     def deploy_all(self):
+        count = 0
         for runtime in self.runtimes:
-            runtime.deploy_all()
+            count = runtime.deploy_all(count)
 
     def print_stats(self):
         all_services = set()
@@ -155,7 +159,7 @@ def get_entrypoints_for_py3():
     Only run uwsgi processes for workers==2 (not 1 or 3) => -2*4 => 85 versions
     """
     entrypoints = [
-        Entrypoint('default', ''),  # use the default
+        Entrypoint('gunicorn-default', ''),  # use the default
     ]
 
     gunicorn = ('gunicorn --preload --worker-class=%s --workers=%d'
@@ -212,7 +216,7 @@ def queue_gae_standard_python3_deployments(deployer):
     """
     # deploy a service to drain the tx task queue
     deployer.add_deploy(
-        'py37', 'flask', Entrypoint('py3taskhandler', None), None)
+        'py37', 'flask', Entrypoint('py3taskhandler', None), [None])
 
     # deploy a service for each desired entrypoint X framework X test combo
     for entrypoint in get_entrypoints_for_py3():
@@ -258,7 +262,7 @@ def main():
     deployer = GAEStandardDeployer(project_name)
 
     # every app engine project requires a default service
-    deployer.add_deploy('default', 'webapp', Entrypoint('default', None), None)
+    deployer.add_deploy('default', 'webapp', Entrypoint('default', None))
     queue_gae_standard_python2_deployments(deployer)
     queue_gae_standard_python3_deployments(deployer)
     deployer.print_stats()
