@@ -21,7 +21,9 @@ def deploy_gae_standard_python2(project_name):
     Deploys the service 6 times with different configurations -- 3 different
     machine types, each deployed twice. One copy from each pair will be capped
     at a single instance by setting the scaling limit (to measure single
-    instance performance).
+    instance performance). Required default service is deployed too.
+
+    Total Services = 1 + 3 * 6 = 19
     """
     root_dir = os.path.abspath(os.path.dirname(__file__))
     # a default module is required, so deploy an empty app to it
@@ -44,7 +46,7 @@ def deploy_gae_standard_python2(project_name):
                 services = ['py27-%s-solo-%s' % (icls.lower(), test)
                             for test in TESTS]
             else:
-                services = ['py27-%s' % icls.lower()]
+                services = []  # no scaling instances for this test anymore
             for service in services:
                 new_cfg = template_cfg + '\n'.join([
                     'service: ' + service,
