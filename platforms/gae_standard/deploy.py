@@ -149,27 +149,41 @@ def deploy_gae_standard_python3(project_name):
     template_cfg = open(py37_cfg_template_path, 'r').read()
     os.chdir(py37_dir)
 
+    falcon_path = os.path.join(py37_dir, 'falcon_main.py')
+    flask_path = os.path.join(py37_dir, 'flask_main.py')
+    main_path = os.path.join(py37_dir, 'main.py')
+    use_flask = lambda: subprocess.check_call(['cp', flask_path, main_path])
+    use_falcon = lambda: subprocess.check_call(['cp', falcon_path, main_path])
+
     # deploy a service to drain the tx task queue
     # note: beta app deploy required to use VPC connector (for Redis)
     new_cfg = template_cfg + '\nservice: py3taskhandler'
+    use_flask()
     subprocess.check_call([
         'gcloud', 'beta', 'app', 'deploy', '--quiet', '--project',
         project_name, '--version', 'v1'])
-
     for service, cmd in get_entrypoints_for_py3():
         for test in NARROW_TESTS:
-            if not cmd:
-                entrypoint = ''
-            else:
-                entrypoint = 'entrypoint: ' + cmd
-            new_cfg = template_cfg + '\n'.join([
-                'service: ' + service,
-                entrypoint,
-            ])
-            open(py37_cfg_path, 'w').write(new_cfg)
-            subprocess.check_call([
-                'gcloud', 'beta', 'app', 'deploy', '--quiet', '--project',
-                project_name, '--version', 'v1'])
+            for do_use_flask in (True, False):
+                if do_use_flask:
+                    version = 'flask'
+                    use_flask()
+                else:
+                    version = 'falcon'
+                    use_falcon()
+                if not cmd:
+                    entrypoint = ''
+                else:
+                    entrypoint = 'entrypoint: ' + cmd
+                new_cfg = template_cfg + '\n'.join([
+                    'service: ' + service,
+                    entrypoint,
+                ])
+                open(py37_cfg_path, 'w').write(new_cfg)
+                subprocess.check_call([
+                    'gcloud', 'beta', 'app', 'deploy', '--quiet', '--project',
+                    project_name, '--version', version])
+
 
 def set_scaling_limit(project_name, service, limit):
     import google.auth

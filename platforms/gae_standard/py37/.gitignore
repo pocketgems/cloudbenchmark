@@ -1,3 +1,4 @@
 app.yaml
 cloudtasksaccount.json
+main.py
 template-with-redis.yaml

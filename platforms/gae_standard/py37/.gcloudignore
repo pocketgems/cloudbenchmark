@@ -1,5 +1,7 @@
 .git
 .gitignore
 *.pyc
+falcon.py
+flask.py
 template.yaml
 template-with-redis.yaml
