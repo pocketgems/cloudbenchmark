@@ -14,6 +14,7 @@ async function benchmark(projectName, service, version, testName,
         url: url
     });
     out.service = service;
+    out.version = version;
     out.testName = testName;
     out.conns = numConnections;
     if (isSummaryDesired) {
@@ -28,6 +29,7 @@ function summarize(result) {
     return [
         result.finish.toUTCString(),
         result.service,
+        result.version,
         result.testName,
         result.requests.mean,
         result.throughput.mean / 1000,
@@ -53,7 +55,7 @@ async function main(projectName, service, version, testName, duration) {
 
     // display results in a tabular format which can be copied/pasted into a
     // spreadsheet
-    console.log(['Time', 'Service', 'Test', 'Req/sec', 'kB/sec',
+    console.log(['Time', 'Service', 'Version', 'Test', 'Req/sec', 'kB/sec',
                  'Latency (best, ms)',
                  'Latency p50', 'Latency p90', 'Latency p99',
                  '# Errors', 'Test Duration (s)', '% Errors',
