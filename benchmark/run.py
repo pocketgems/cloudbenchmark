@@ -5,22 +5,21 @@ import sys
 
 from requests_futures.sessions import FuturesSession
 
-ALL_TESTS = ['noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask']
+ALL_TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask')
+NARROW_TESTS = ('noop', 'memcache', 'dbtx', 'txtask')
 ICLASSES = ('f1', 'f2', 'f4')
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'
-    '/runBenchmark?project=%s&secs=%d&test=%s&service=%s&c=%s')
+    '/runBenchmark?project=%s&secs=%d&test=%s&service=%s&version=%s&c=%s')
 
 PendingRequest = namedtuple('PendingRequest', ('url', 'future'))
-
-session = FuturesSession(max_workers=len(ALL_TESTS) * len(ICLASSES))
 
 
 def get_responses(urls):
     """Fetches each URL in parallel. Failures are retried."""
+    session = FuturesSession(max_workers=len(urls))
     pending = [PendingRequest(url, session.get(url)) for url in urls]
     resps = {}
-    print 'running %d benchmarks' % len(pending)
     while pending:
         new_pending = []
         for url, future in pending:
@@ -39,11 +38,20 @@ def get_responses(urls):
 def make_test_urls(project, tests, secs, num_conns):
     """Returns a list of URLs for running benchmarks."""
     urls = []
+    service = 'py27'
     for test in tests:
         for icls in ICLASSES:
-            service = 'py27-%s-solo-%s' % (icls, test)
-            urls.append(BENCHMARKER_URL_FMT % (
-                project, project, secs, test, service, num_conns))
+            for framework in ('webapp',):
+                version = '%s-%s-solo-%s' % (framework, icls, test)
+                urls.append(BENCHMARKER_URL_FMT % (
+                    project, project, secs, test, service, version, num_conns))
+    service = 'py37'
+    for test in tests:
+        for framework in ('falcon', 'flask'):
+            for entrypoint in ('gunicorn-default',):
+                version = '%s-%s-%s' % (framework, entrypoint, test)
+                urls.append(BENCHMARKER_URL_FMT % (
+                    project, project, secs, test, service, version, num_conns))
     return urls
 
 
@@ -59,11 +67,14 @@ def main():
 
     # warmup and try to measure the best latency while handling only 1 request
     # at a time
-    best_resps = get_responses(make_test_urls(project, tests, 10, 1))
+    short_test_urls = make_test_urls(project, tests, 10, 1)
+    print 'warming up %d versions ...' % len(short_test_urls)
+    best_resps = get_responses(short_test_urls)
 
     # run longer tests to gauge throughput under load (10% more connections
     # than the maximum concurrent requests allowed by the instance to ensure we
     # saturate it)
+    print 'running the full tests ...'
     resps = get_responses(make_test_urls(project, tests, secs, 88))
 
     # print the test results, using the best performing request for min latency
