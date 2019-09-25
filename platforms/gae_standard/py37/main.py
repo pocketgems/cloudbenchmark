@@ -1,3 +1,10 @@
+# if running uwsgi+gevent (ONLY) then we need to monkeypatch because it doesn't
+# monkey-patch for us
+if 'uwsgi-gevent' in os.environ.get('GAE_SERVICE', ''):
+    import gevent.monkey
+    gevent.monkey.patch_all()
+
+
 import os
 APP_ID = os.environ.get('GAE_APPLICATION', '').replace('s~', '')
 if __name__ != '__main__':
