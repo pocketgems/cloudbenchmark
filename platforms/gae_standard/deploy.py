@@ -251,8 +251,8 @@ def set_scaling_limit(project_name, service, limit):
 
 
 def main():
-    if not sys.argv:
-        print 'missing command-line arg'
+    if not sys.argv or 'deploy.py' in sys.argv[-1]:
+        print 'USAGE: ./deploy.py PROJECT_NAME'
         sys.exit(1)
     project_name = sys.argv[-1]
     deployer = GAEStandardDeployer(project_name)
