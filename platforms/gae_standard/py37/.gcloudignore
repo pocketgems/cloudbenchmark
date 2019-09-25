@@ -6,4 +6,4 @@ falcon_main.py
 fastapi_main.py
 flask_main.py
 template.yaml
-template-with-redis.yaml
+template-generated.yaml

@@ -57,7 +57,7 @@ gcloud beta compute networks vpc-access connectors create conntest \
 vpcname="$(gcloud beta compute networks vpc-access connectors describe \
                   conntest --region us-central1 \
                     | fgrep name | cut -d: -f2 | cut -d' ' -f2)"
-py37cfgFN=./platforms/gae_standard/py37/template-with-redis.yaml
+py37cfgFN=./platforms/gae_standard/py37/template-generated.yaml
 cp ./platforms/gae_standard/py37/template.yaml $py37cfgFN
 echo "vpc_access_connector:" >> $py37cfgFN
 echo "  name: $vpcname" >> $py37cfgFN
@@ -77,6 +77,9 @@ gcloud iam service-accounts keys create \
     platforms/gae_standard/py37/cloudtasksaccount.json \
     --iam-account testcloudtasks@$PROJECTNAME.iam.gserviceaccount.com
 gcloud tasks queues create testpy3 \
+     --max-concurrent-dispatches=0 \
+     --max-attempts=0
+gcloud tasks queues create test \
      --max-concurrent-dispatches=0 \
      --max-attempts=0
 

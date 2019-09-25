@@ -15,55 +15,127 @@ TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask')
 NARROW_TESTS = ('noop', 'memcache', 'dbtx', 'txtask')
 
 
-def run(cmd):
-    subprocess.check_call(cmd.split())
+Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
+PendingDeployment = namedtuple('PendingDeployment', (
+    'framework_aka_version', 'service', 'cfg', 'deploy_cmd', 'post_deploy'))
+
+
+class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
+    def add_deploy(self, project_name, framework, entrypoint, tests, post):
+        version = framework
+        for test in tests or [None]:
+            if test:
+                service = entrypoint.name + '-' + test
+            else:
+                service = entrypoint.name
+            if not entrypoint.command:
+                entrypoint_cfg = ''
+            else:
+                entrypoint_cfg = 'entrypoint: ' + entrypoint.command
+            if service != 'default' or entrypoint_cfg:
+                cfg = self.cfg + '\n'.join([
+                    'service: ' + service,
+                    entrypoint_cfg,
+                ])
+            else:
+                cfg = self.cfg  # default is implied
+            cmd = ['gcloud', 'app', 'deploy', '--quiet',
+                   '--project', project_name,
+                   '--version', version]
+            # note: beta app deploy required to use VPC connector (for Redis)
+            if self.name not in ('default', 'py27'):
+                cmd.insert(2, 'beta')
+            self.deployments.append(PendingDeployment(
+                framework, service, cfg, cmd, post))
+
+    def deploy_all(self):
+        os.chdir(self.path)
+        for pd in self.deployments:
+            self.__use_framework(self.path, pd.framework_aka_version)
+            open('app.yaml', 'w').write(pd.cfg)
+            subprocess.check_call(pd.deploy_cmd)
+            if pd.post_deploy:
+                pd.post_deploy(pd.service)
+
+    def print_stats(self):
+        all_services = set([])
+        all_version_service_pairs = set([])
+        for pd in self.deployments:
+            all_services.add(pd.service)
+            all_version_service_pairs.add('-'.join([pd.framework_aka_version,
+                                                    pd.service]))
+        print 'GAE %s - %d service(s) and %d service-version pair(s)' % (
+            self.name, len(all_services), len(all_version_service_pairs))
+        return all_services, all_version_service_pairs
+
+    @staticmethod
+    def __use_framework(runtime_dir, framework):
+        main_path = os.path.join(runtime_dir, 'main.py')
+        framework_path = os.path.join(runtime_dir, '%s_main.py' % framework)
+        subprocess.check_call(['cp', framework_path, main_path])
 
 
 class GAEStandardDeployer(object):
-    def __init__(self):
-        self.deployments = []
+    def __init__(self, project_name):
+        self.project_name = project_name
+        # we will deploy the runtimes in the order they are added
+        self.runtimes = []
+
+    def __get_runtime(self, runtime_name):
+        for runtime in self.runtimes:
+            if runtime.name == runtime_name:
+                return runtime  # already added
+        root_dir = os.path.abspath(os.path.dirname(__file__))
+        runtime_dir = os.path.join(root_dir, runtime_name)
+        for cfg_name in ('template-generated', 'template', 'app'):
+            runtime_cfg_template_path = os.path.join(
+                runtime_dir, '%s.yaml' % cfg_name)
+            if os.path.exists(runtime_cfg_template_path):
+                break
+        template_cfg = open(runtime_cfg_template_path, 'r').read()
+        runtime = Runtime(runtime_name, runtime_dir, template_cfg, [])
+        self.runtimes.append(runtime)
+        return runtime
+
+    def add_deploy(self, runtime, framework, entrypoint, tests=NARROW_TESTS,
+                   post=None):
+        self.__get_runtime(runtime).add_deploy(
+            self.project_name, framework, entrypoint, tests, post)
+
+    def deploy_all(self):
+        for runtime in self.runtimes:
+            runtime.deploy_all()
+
+    def print_stats(self):
+        all_services = set()
+        all_version_service_pairs = set()
+        for runtime in self.runtimes:
+            ret = runtime.print_stats()
+            all_services |= ret[0]
+            all_version_service_pairs |= ret[1]
+        print 'GAE TOTAL - %d service(s) and %d service-version pair(s)' % (
+            len(all_services), len(all_version_service_pairs))
+        assert len(all_services) <= 105, "can't have more than 105 services"
+        assert len(all_version_service_pairs) <= 210, ("can't have more than "
+                                                       "210 versions")
 
 
-def deploy_gae_standard_python2(project_name):
-    """Deploys the python 2.7 version of the service.
+def queue_gae_standard_python2_deployments(deployer):
+    """Prepares the python 2.7 services.
 
-    Deploys the service 6 times with different configurations -- 3 different
+    Creates each service 6 times with different configurations -- 3 different
     machine types, each deployed twice. One copy from each pair will be capped
     at a single instance by setting the scaling limit (to measure single
     instance performance). Required default service is deployed too.
 
     Total Services = 1 + 3 * 6 = 19
     """
-    root_dir = os.path.abspath(os.path.dirname(__file__))
-    # a default module is required, so deploy an empty app to it
-    os.chdir(os.path.join(root_dir, 'default'))
-    subprocess.check_call([
-        'gcloud', 'app', 'deploy', '--quiet', '--project',
-        project_name, '--version', 'v1'])
-    # deploy the task queue configuration
-    py27_dir = os.path.join(root_dir, 'py27')
-    os.chdir(py27_dir)
-    subprocess.check_call(['gcloud', 'app', 'deploy', 'queue.yaml', '--quiet',
-                           '--project', project_name])
     # deploy a variety of configurations of our python 2.7 app
-    py27_cfg_template_path = os.path.join(py27_dir, 'template.yaml')
-    template_cfg = open(py27_cfg_template_path, 'r').read()
-    py27_cfg_path = os.path.join(py27_dir, 'app.yaml')
     for icls in INSTANCE_CLASSES:
-        for test in TESTS:
-            service = 'py27-%s-solo-%s' % (icls.lower(), test)
-            new_cfg = template_cfg + '\n'.join([
-                'service: ' + service,
-                'instance_class: ' + icls])
-            open(py27_cfg_path, 'w').write(new_cfg)
-            subprocess.check_call([
-                'gcloud', 'app', 'deploy', '--quiet', '--project',
-                project_name, '--version', 'v1'])
-            set_scaling_limit(project_name, service, 1)
-    os.remove(py27_cfg_path)
-
-
-Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
+        name = 'py27-%s-solo' % icls.lower()
+        deployer.add_deploy('py27', 'webapp', Entrypoint(name, None),
+                            post=lambda service: set_scaling_limit(
+                                deployer.project_name, service, 1))
 
 
 def get_entrypoints_for_py3():
@@ -135,58 +207,15 @@ def get_entrypoints_for_py3():
     return entrypoints
 
 
-PendingDeployment = namedtuple('PendingDeployment', (
-    'framework_aka_version', 'service', 'cfg', 'deploy_cmd'))
-
-
-def deploy_gae_standard_python3(project_name):
-    """Deploys the python 3.7 version of the service.
+def queue_gae_standard_python3_deployments(deployer):
+    """Prepares python 3.7 services.
 
     Only deploys to one instance class. Varies server entrypoint instead.
     """
-    root_dir = os.path.abspath(os.path.dirname(__file__))
-    py37_dir = os.path.join(root_dir, 'py37')
-    py37_cfg_path = os.path.join(py37_dir, 'app.yaml')
-    py37_cfg_template_path = os.path.join(py37_dir, 'template-with-redis.yaml')
-    template_cfg = open(py37_cfg_template_path, 'r').read()
-    os.chdir(py37_dir)
-
-    def use_framework(framework):
-        main_path = os.path.join(py37_dir, 'main.py')
-        framework_path = os.path.join(py37_dir, '%s_main.py' % framework)
-        subprocess.check_call(['cp', framework_path, main_path])
-
-
-    deployments = []
-    def add_deploy(framework, entrypoint, tests=NARROW_TESTS):
-        version = framework
-        for test in tests:
-            if test:
-                service = entrypoint.name + '-' + test
-            else:
-                service = entrypoint.name
-            if not entrypoint.command:
-                entrypoint_cfg = ''
-            else:
-                entrypoint_cfg = 'entrypoint: ' + entrypoint.command
-            cfg = template_cfg + '\n'.join([
-                'service: ' + service,
-                entrypoint_cfg,
-            ])
-            # note: beta app deploy required to use VPC connector (for Redis)
-            cmd = ['gcloud', 'beta', 'app', 'deploy', '--quiet', '--project',
-                   project_name, '--version', version]
-            deployments.append(PendingDeployment(framework, service, cfg, cmd))
-
-
-    def deploy(pd):
-        use_framework(pd.framework_aka_version)
-        open(py37_cfg_path, 'w').write(pd.cfg)
-        subprocess.check_call(pd.deploy_cmd)
-
-
     # deploy a service to drain the tx task queue
-    add_deploy('flask', Entrypoint('py3taskhandler', None), [''])
+    deployer.add_deploy(
+        'py37', 'flask', Entrypoint('py3taskhandler', None), None)
+
     # deploy a service for each desired entrypoint X framework X test combo
     for entrypoint in get_entrypoints_for_py3():
         if 'uvicorn' not in entrypoint.name:
@@ -194,16 +223,7 @@ def deploy_gae_standard_python3(project_name):
         else:
             frameworks = ('fastapi',)
         for framework in frameworks:
-            add_deploy(framework, entrypoint)
-
-    all_services = set([])
-    all_version_service_pairs = set([])
-    for pd in deployments:
-        all_services.add(pd.service)
-        all_version_service_pairs.add('-'.join([pd.framework_aka_version,
-                                                pd.service]))
-    print 'GAE Python 3 - deploying %d services (%d service-version pairs)' % (
-        len(all_services), len(all_version_service_pairs))
+            deployer.add_deploy('py37', framework, entrypoint)
 
 
 def set_scaling_limit(project_name, service, limit):
@@ -237,8 +257,14 @@ def main():
         print 'missing command-line arg'
         sys.exit(1)
     project_name = sys.argv[-1]
-    #deploy_gae_standard_python2(project_name)
-    deploy_gae_standard_python3(project_name)
+    deployer = GAEStandardDeployer(project_name)
+
+    # every app engine project requires a default service
+    deployer.add_deploy('default', 'webapp', Entrypoint('default', None), None)
+    queue_gae_standard_python2_deployments(deployer)
+    queue_gae_standard_python3_deployments(deployer)
+    deployer.print_stats()
+    deployer.deploy_all()
 
 
 if __name__ == '__main__':
