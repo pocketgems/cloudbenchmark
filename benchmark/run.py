@@ -15,6 +15,33 @@ BENCHMARKER_URL_FMT = (
 PendingRequest = namedtuple('PendingRequest', ('url', 'future'))
 
 
+PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON = (
+    'gunicorn-default',
+    'gunicorn-gevent1w80c',
+    'gunicorn-gevent2w40c',
+    'gunicorn-gevent3w26c',
+    'gunicorn-meinheld1w',
+    'gunicorn-meinheld2w',
+    'gunicorn-meinheld3w',
+    'gunicorn-processes1w',
+    'gunicorn-processes2w',
+    'gunicorn-processes3w',
+    'gunicorn-thread1w3t',
+    'gunicorn-thread2w3t',
+    'uwsgi-gevent1w80c',
+    'uwsgi-gevent2w40c',
+    'uwsgi-gevent3w26c',
+    'uwsgi-processes2w',
+    'uwsgi-thread1w3t',
+    'uwsgi-thread2w3t',
+)
+PY3_UVICORN_ENTRYPOINTS = (
+    'fastapi-gunicorn-uvicorn1w',
+    'fastapi-gunicorn-uvicorn2w',
+    'fastapi-gunicorn-uvicorn3w',
+)
+
+
 def get_responses(urls):
     """Fetches each URL in parallel. Failures are retried."""
     session = FuturesSession(max_workers=len(urls))
@@ -46,10 +73,14 @@ def make_test_urls(project, tests, secs, num_conns):
                 urls.append(BENCHMARKER_URL_FMT % (
                     project, project, secs, test, service, version, num_conns))
     service = 'py37'
+    to_try = []
+    for framework in ('falcon', 'flask'):
+        to_try.extend(['%s-%s' % (framework, x)
+                       for x in PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON])
+    to_try.extend(PY3_UVICORN_ENTRYPOINTS)
     for test in tests:
-        for framework in ('falcon', 'flask'):
-            for entrypoint in ('gunicorn-default',):
-                version = '%s-%s-%s' % (framework, entrypoint, test)
+        for framework_and_entrypoint in to_try:
+                version = '%s-%s' % (framework_and_entrypoint, test)
                 urls.append(BENCHMARKER_URL_FMT % (
                     project, project, secs, test, service, version, num_conns))
     return urls
