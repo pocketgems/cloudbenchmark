@@ -150,9 +150,12 @@ def deploy_gae_standard_python3(project_name):
     os.chdir(py37_dir)
 
     falcon_path = os.path.join(py37_dir, 'falcon_main.py')
+    fastapi_path = os.path.join(py37_dir, 'fastapi_main.py')
     flask_path = os.path.join(py37_dir, 'flask_main.py')
     main_path = os.path.join(py37_dir, 'main.py')
     use_flask = lambda: subprocess.check_call(['cp', flask_path, main_path])
+    use_fastapi = lambda: subprocess.check_call([
+        'cp', fastapi_path, main_path])
     use_falcon = lambda: subprocess.check_call(['cp', falcon_path, main_path])
 
     # deploy a service to drain the tx task queue
@@ -163,9 +166,16 @@ def deploy_gae_standard_python3(project_name):
         'gcloud', 'beta', 'app', 'deploy', '--quiet', '--project',
         project_name, '--version', 'v1'])
     for service, cmd in get_entrypoints_for_py3():
+        if 'uvicorn' in service:
+            options = (True, False)
+        else:
+            options = ('fastapi',)
         for test in NARROW_TESTS:
-            for do_use_flask in (True, False):
-                if do_use_flask:
+            for do_use_flask in options:
+                if do_use_flask == 'fastapi':
+                    version = 'fastapi'
+                    use_fastapi()
+                elif do_use_flask:
                     version = 'flask'
                     use_flask()
                 else:
