@@ -5,7 +5,7 @@ import sys
 
 from requests_futures.sessions import FuturesSession
 
-ALL_TESTS = ['noop', 'sleep', 'data', 'cache', 'memcache', 'dbtx', 'txtask']
+ALL_TESTS = ['noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask']
 ICLASSES = ('f1', 'f2', 'f4')
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'

@@ -8,7 +8,7 @@ import requests
 
 
 INSTANCE_CLASSES = ('F1', 'F2', 'F4')
-TESTS = ['noop', 'sleep', 'data', 'cache', 'memcache', 'dbtx', 'txtask']
+TESTS = ['noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask']
 
 
 def run(cmd):
