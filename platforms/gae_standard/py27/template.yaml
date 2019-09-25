@@ -20,11 +20,3 @@ libraries:
 handlers:
 - url: /.*
   script: main.app
-
-
-skip_files:
-- ^(.*/)?#.*#$
-- ^(.*/)?.*~$
-- ^(.*/)?.*\.py[co]$
-- ^template.yaml$
-- ^(.*/)?\..*$
