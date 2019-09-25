@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 const autocannon = require('autocannon');
 
-const servicesToTest = [
-    'py27-f1-solo-noop',
-];
-
-async function benchmark(projectName, service, testName,
+async function benchmark(projectName, service, version, testName,
                          numConnections, durationSecs, isSummaryDesired) {
-    var url = ['https://', service, '-dot-', projectName,
+    var url = ['https://', version, '-dot-', service, '-dot-', projectName,
                '.appspot.com/test/' + testName].join('');
+    console.log(url);
     var out = await autocannon({
         connections: numConnections,
         duration: durationSecs,
@@ -45,20 +42,14 @@ function summarize(result) {
     ].join('\t');
 };
 
-async function main(projectName, testName, duration) {
-    if (!projectName || !testName || !duration) {
+// can run the tests locally (but better to use
+async function main(projectName, service, version, testName, duration) {
+    if (!projectName || !service || !version || !testName || !duration) {
         throw 'missing required command-line arg(s)';
     }
-
-    // test each service sequentially
-    var serviceIdx = 0;
-    var results = [];
-    for (var i = 0; i < servicesToTest.length; i++) {
-        var service = servicesToTest[serviceIdx++];
-        var out = await benchmark(projectName, service, testName, 64, duration);
-        console.log(service, out.requests.mean, out.latency.p50);
-        results.push(out);
-    }
+    var out = await benchmark(projectName, service, version,
+                              testName, 64, duration);
+    console.log(service, version, out.requests.mean, out.latency.p50);
 
     // display results in a tabular format which can be copied/pasted into a
     // spreadsheet
@@ -67,12 +58,10 @@ async function main(projectName, testName, duration) {
                  'Latency p50', 'Latency p90', 'Latency p99',
                  '# Errors', 'Test Duration (s)', '% Errors',
                  'Timeouts'].join('\t'));
-    for (var i in results) {
-        console.log(summarize(results[i]));
-    }
+    console.log(summarize(out));
 }
 
 if (require.main === module) {
-    main.apply(null, process.argv.slice(process.argv.length - 3));
+    main.apply(null, process.argv.slice(process.argv.length - 5));
 }
 exports.benchmark = benchmark;
