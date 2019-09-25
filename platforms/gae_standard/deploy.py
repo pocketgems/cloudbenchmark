@@ -161,14 +161,14 @@ def get_entrypoints_for_py3():
         Entrypoint('gunicorn-default', ''),  # use the default
     ]
 
-    gunicorn = ('gunicorn --preload --worker-class=%s --workers=%d'
+    gunicorn = ('gunicorn --preload --worker-class=%s --workers=%d '
                 '--bind=:$PORT main:app --log-level warning')
     uwsgi = 'uwsgi --http :$PORT --wsgi-file main.py --callable app '
 
     # multi-threaded processes (2 configurations to test)
     for num_workers, num_threads in ((1, 3), (2, 3)):
         name = 'gunicorn-thread%dw%dt' % (num_workers, num_threads)
-        cmd = (gunicorn + ' --num_threads=%d') % (
+        cmd = (gunicorn + ' --threads=%d') % (
             'gthread', num_workers, num_threads)
         entrypoints.append(Entrypoint(name, cmd))
         name = 'uwsgi-thread%dw%dt' % (num_workers, num_threads)
@@ -198,7 +198,7 @@ def get_entrypoints_for_py3():
             '--processes=%d --gevent=%d' % (num_workers,
                                             max_conns_per_worker))))
         name = 'gunicorn-meinheld%dw' % num_workers
-        cmd = gunicorn % ('egg:meinheld#gunicorn-worker', num_workers)
+        cmd = gunicorn % ('egg:meinheld#gunicorn_worker', num_workers)
         entrypoints.append(Entrypoint(name, cmd))
 
         # ASGI
