@@ -17,28 +17,29 @@ NARROW_TESTS = ('noop', 'memcache', 'dbtx', 'txtask')
 
 Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
 PendingDeployment = namedtuple('PendingDeployment', (
-    'framework_aka_version', 'service', 'cfg', 'deploy_cmd', 'post_deploy'))
+    'framework', 'version', 'service', 'cfg', 'deploy_cmd', 'post_deploy'))
 
 
 class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
     def add_deploy(self, project_name, framework, entrypoint, tests, post):
-        version = framework
+        service = self.name
         for test in tests or [None]:
             if test:
-                service = entrypoint.name + '-' + test
+                version = '-'.join([framework, entrypoint.name, test])
             else:
-                service = entrypoint.name
+                version = entrypoint.name
             if not entrypoint.command:
                 entrypoint_cfg = ''
             else:
                 entrypoint_cfg = 'entrypoint: ' + entrypoint.command
-            if service != 'default' or entrypoint_cfg:
+            if entrypoint.name == 'default':
+                cfg = self.cfg  # default is implied
+                assert not entrypoint_cfg
+            else:
                 cfg = self.cfg + '\n'.join([
                     'service: ' + service,
                     entrypoint_cfg,
                 ])
-            else:
-                cfg = self.cfg  # default is implied
             cmd = ['gcloud', 'app', 'deploy', '--quiet',
                    '--project', project_name,
                    '--version', version]
@@ -46,12 +47,12 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
             if self.name not in ('default', 'py27'):
                 cmd.insert(2, 'beta')
             self.deployments.append(PendingDeployment(
-                framework, service, cfg, cmd, post))
+                framework, version, service, cfg, cmd, post))
 
     def deploy_all(self):
         os.chdir(self.path)
         for pd in self.deployments:
-            self.__use_framework(self.path, pd.framework_aka_version)
+            self.__use_framework(self.path, pd.framework)
             open('app.yaml', 'w').write(pd.cfg)
             subprocess.check_call(pd.deploy_cmd)
             if pd.post_deploy:
@@ -59,14 +60,13 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
 
     def print_stats(self):
         all_services = set([])
-        all_version_service_pairs = set([])
+        all_service_version_pairs = set([])
         for pd in self.deployments:
             all_services.add(pd.service)
-            all_version_service_pairs.add('-'.join([pd.framework_aka_version,
-                                                    pd.service]))
+            all_service_version_pairs.add('-'.join([pd.service, pd.version]))
         print 'GAE %s - %d service(s) and %d service-version pair(s)' % (
-            self.name, len(all_services), len(all_version_service_pairs))
-        return all_services, all_version_service_pairs
+            self.name, len(all_services), len(all_service_version_pairs))
+        return all_services, all_service_version_pairs
 
     @staticmethod
     def __use_framework(runtime_dir, framework):
@@ -108,15 +108,15 @@ class GAEStandardDeployer(object):
 
     def print_stats(self):
         all_services = set()
-        all_version_service_pairs = set()
+        all_service_version_pairs = set()
         for runtime in self.runtimes:
             ret = runtime.print_stats()
             all_services |= ret[0]
-            all_version_service_pairs |= ret[1]
+            all_service_version_pairs |= ret[1]
         print 'GAE TOTAL - %d service(s) and %d service-version pair(s)' % (
-            len(all_services), len(all_version_service_pairs))
+            len(all_services), len(all_service_version_pairs))
         assert len(all_services) <= 105, "can't have more than 105 services"
-        assert len(all_version_service_pairs) <= 210, ("can't have more than "
+        assert len(all_service_version_pairs) <= 210, ("can't have more than "
                                                        "210 versions")
 
 
@@ -126,9 +126,9 @@ def queue_gae_standard_python2_deployments(deployer):
     Creates each service 6 times with different configurations -- 3 different
     machine types, each deployed twice. One copy from each pair will be capped
     at a single instance by setting the scaling limit (to measure single
-    instance performance). Required default service is deployed too.
+    instance performance).
 
-    Total Services = 1 + 3 * 6 = 19
+    Total Versions = 3 * 6 = 18
     """
     # deploy a variety of configurations of our python 2.7 app
     for icls in INSTANCE_CLASSES:
@@ -149,12 +149,10 @@ def get_entrypoints_for_py3():
       gunicorn - sync, gevent, meinheld, uvicorn, and app engine default
       uwsgi - processes, gevent
 
-    Using a narrower set of 4 tests due to GAE only allowing 105 services.
-    Total Services = 1 + (2 threaded * 2 + 3 non-threaded * (5 + 2)) * 4 tests
+    Using a narrower set of 4 tests due to GAE only allowing 105 versions.
+    Total Versions = 1 + (2 threaded * 2 + 3 non-threaded * (5 + 2)) * 4 tests
                    = 1 + (1 + 4 + 18) * 4 = 93
-    Only run uwsgi processes for workers==2 (not 1 or 3) --> -2*4 => 85
-
-    Only have room for 105 (max) - 19 (py27 services) = 86. So 85 is fine.
+    Only run uwsgi processes for workers==2 (not 1 or 3) => -2*4 => 85 versions
     """
     entrypoints = [
         Entrypoint('default', ''),  # use the default
