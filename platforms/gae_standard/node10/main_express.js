@@ -1,4 +1,5 @@
 const express = require('express');
+const asyncHandler = require('express-async-handler');
 const helper = require('./helper');
 
 const app = express()
@@ -22,40 +23,35 @@ function sleep(secs){
         setTimeout(resolve, secs * 1000);
     });
 }
-app.get('/test/sleep', (req, res) => {
+app.get('/test/sleep', asyncHandler(async (req, res, next) => {
     const s = +req.query.s || 1;
-    sleep(s).then(() => {
-        res.end();
-    });
-});
+    await sleep(s);
+    res.end();
+}));
 
 app.get('/test/data', (req, res) => {
     const sz = +req.query.sz || Math.pow(2, 20);
     res.send('x'.repeat(sz));
 });
 
-function genericCallbackHandler(res, err) {
-    if (err) {
-        res.status(500);
-    }
-    res.end();
-}
-
-app.get('/test/memcache', (req, res) => {
+app.get('/test/memcache', asyncHandler(async (req, res, next) => {
     const n = +req.query.n || 1;
     const sz = +req.query.sz || 10240;
-    helper.do_memcache(n, sz, (err) => { genericCallbackHandler(res, err); });
-});
+    await helper.doMemcache(n, sz);
+    res.end();
+}));
 
-app.get('/test/dbtx', (req, res) => {
+app.get('/test/dbtx', asyncHandler(async (req, res, next) => {
     const n = +req.query.n || 5;
-    helper.do_db_tx(n).then(res.end);
-});
+    await helper.doDatastoreTx(n);
+    res.end();
+}));
 
-app.get('/test/txtask', (req, res) => {
+app.get('/test/txtask', asyncHandler(async (req, res, next) => {
     const n = +req.query.n || 5;
-    helper.do_tx_task(n, (err) => { genericCallbackHandler(res, err); });
-});
+    await helper.doTxTask(n);
+    res.end();
+}));
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {

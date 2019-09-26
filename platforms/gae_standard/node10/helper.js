@@ -6,7 +6,7 @@ const {Datastore} = require('@google-cloud/datastore');
 const dbc = new Datastore();
 
 const {CloudTasksClient} = require('@google-cloud/tasks');
-const client = new CloudTasksClient({keyFilename: 'cloudtaskaccount.json'});
+const taskq = new CloudTasksClient({keyFilename: 'cloudtasksaccount.json'});
 
 if (process.env.REDIS_HOST) {
     const rcache = require('redis').createClient({
@@ -19,107 +19,101 @@ else {
     const rcache = null;
 }
 
-function do_memcache(n, sz, cb) {
+exports.doMemcache = async (n, sz) => {
     const key = uuidv4();
     const val = 'x'.repeat(sz);
-    rcache.set(key, val, 'EX', 60, (err) => {
-        if (err) {
-            cb(err);
-            return;
+    await rcache.set(key, val, 'EX', 60);
+    for (let i = 0; i < n; i++) {
+        const ret = await rcache.get(key);
+        if (ret !== val) {
+            throw new Error('value in cache is wrong');
         }
-        let i = 0;
-        function doGet() {
-            rcache.get(key, (err, ret) => {
-                if (err) {
-                    cb(err);
-                    return;
-                }
-                if (ret !== val) {
-                    cb(new Error('value in cache is wrong'));
-                }
-                i += 1;
-                if (i < n) {
-                    doGet();
-                }
-                else {
-                    cb();  // all done
-                }
-            });
-        }
-        doGet();
-    });
+    }
 }
 
-async function do_db_tx(n) {
+exports.doDatastoreTx = async (n) => {
+    const randomID = uuidv4();
     for (let i = 0; i < n; i++) {
-        const randomID = uuidv4();
         const tx = await dbc.transaction();
         await tx.run();
-        const entity = await incr_db_entry(tx, randomID);
+        const counter = await incrDbEntry(tx, randomID);
+        tx.save(counter);
         await tx.commit();
-    });
-}
-
-function do_tx_task(n) {
-    for ignore in range(n):
-        tx_id = uuid.uuid4().hex
-        fq_queue_name = taskq.queue_path(
-            APP_ID,
-            'us-central1',
-            'testpy3')  # this is the queue name
-        task = dict(
-            app_engine_http_request=dict(
-                http_method='POST',
-                relative_uri='/handleTxTask',
-                body=('x' * 512).encode(),  # encode to bytes
-                app_engine_routing=dict(
-                    service='py3',
-                    version='txtaskhandler',
-                ),
-                headers=dict(
-                    TXID=tx_id,
-                ),
-            ),
-        )
-        new_task = taskq.create_task(fq_queue_name, task)
-        random_id = uuid.uuid4().hex
-        try:
-            with dbc.transaction():
-                counter = incr_db_entry(random_id)
-                tx_done_sentinel = db.Entity(key=dbc.key('TxDoneSentinel',
-                                                         tx_id))
-                dbc.put_multi([counter, tx_done_sentinel])
-        except:
-            taskq.delete_task(new_task['name'])
-}
-
-async function incr_db_entry(tx, someID) {
-    // tries to get a db entity which won't exist and then creates it
-    const key = dbc.key(['Counter', someID]);
-    let [x] = await tx.get(key);
-    if (!x) {
-        x = {
-            key: key,
-            data: {count: 0}
-            /*
-            [{
-                name: 'count',
-                value: 0,
-                excludeFromIndexes: true
-            }]
-            */
-        };
     }
-    tmpx=x;
-    //x.data['count'] += 1;
-    tx.save(x);
-    return x;
 }
-async function test(id) {
-    const tx = await dbc.transaction();
-    await tx.run();
-    const entity = await incr_db_entry(tx, id);
-    await tx.commit();
-    return entity;
+
+exports.doTxTask = async (n) => {
+    for (let i = 0; i < n; i++) {
+        const txID = uuidv4();
+        const fqQueueName = taskq.queuePath(APP_ID, 'us-central1', 'testpy3');
+        const task = {
+            appEngineHttpRequest: {
+                httpMethod: 'POST',
+                relativeUri: '/handleTxTask',
+                body: 'x'.repeat(512).toString('base64'),
+                appEngineRouting: {
+                    service: 'py3',  // to py3 since not testing its perf
+                    version: 'txtaskhandler',
+                },
+                headers: {
+                    TXID: txID,
+                },
+            },
+        };
+        const request = {
+            parent: fqQueueName,
+            task: task,
+        };
+
+        // we MUST ensure our task has been created before we can commit our tx
+        // BUT we don't have to block on it yet; we can queue up other db API
+        // calls first
+        let taskFuture = taskq.createTask(request);
+        try {
+            const randomID = uuidv4();
+            const tx = await dbc.transaction();
+            await tx.run();
+            const counter = await incrDbEntry(tx, randomID);
+            const txDoneSentinel = {
+                key: dbc.key(['JSTxDoneSentinel', txID]),
+                data: {}
+            };
+            await tx.save([counter, txDoneSentinel]);
+            const [response] = await taskFuture;
+            const taskName = response.name;
+            console.log(`Created task ${taskName}`);
+            await tx.commit();
+        }
+        catch (err) {
+            taskq.deleteTask({name: taskName});
+            throw err;
+        }
+    }
+};
+
+async function incrDbEntry(tx, someID) {
+    // tries to get a db entity which won't exist and then creates it
+    const key = dbc.key(['JSCounter', someID]);
+    let [data] = await tx.get(key);
+    if (!data) {
+        data = [{
+            name: 'count',
+            value: 1,
+            excludeFromIndexes: true
+        }];
+    }
+    else {
+        // we can't simply increment the value in-place because the returned
+        // data doesn't include the excludeFromIndexes info; we must set it
+        // with save() or our field will get indexed :(
+        data = [{
+            name: 'count',
+            value: data.count + 1,
+            excludeFromIndexes: true
+        }];
+    }
+    return {
+        key: key,
+        data: data
+    };
 }
-test('atest1').then((entity) => { tmp = entity; });
