@@ -19,6 +19,12 @@ else {
     const rcache = null;
 }
 
+exports.sleep = (secs) => {
+    return new Promise(replyolve => {
+        setTimeout(replyolve, secs * 1000);
+    });
+};
+
 exports.doMemcache = async (n, sz) => {
     const key = uuidv4();
     const val = 'x'.repeat(sz);

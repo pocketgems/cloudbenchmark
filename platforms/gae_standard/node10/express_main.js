@@ -6,7 +6,7 @@ const app = express()
 app.enable('trust proxy');
 
 app.get('/_ah/warmup', (req, res) => {
-    // no-op
+    res.end();
 });
 
 app.get('/test/log', (req, res) => {
@@ -18,14 +18,9 @@ app.get('/test/noop', (req, res) => {
     res.end();
 });
 
-function sleep(secs){
-    return new Promise(resolve => {
-        setTimeout(resolve, secs * 1000);
-    });
-}
 app.get('/test/sleep', asyncHandler(async (req, res, next) => {
     const s = +req.query.s || 1;
-    await sleep(s);
+    await helper.sleep(s);
     res.end();
 }));
 
