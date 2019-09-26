@@ -84,6 +84,12 @@ def make_test_urls(project, tests, secs, num_conns):
                 version = '%s-%s' % (framework_and_entrypoint, test)
                 urls.append(BENCHMARKER_URL_FMT % (
                     project, project, secs, test, service, version, num_conns))
+    service = 'node10'
+    for test in tests:
+        for framework in ('express', 'fastify'):
+            version = '%s-f1-solo-%s' % (framework, test)
+            urls.append(BENCHMARKER_URL_FMT % (
+                project, project, secs, test, service, version, num_conns))
     return urls
 
 
