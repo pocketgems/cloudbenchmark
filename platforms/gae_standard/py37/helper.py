@@ -67,8 +67,8 @@ def do_memcache(n, sz):
 
 
 def do_db_tx(n):
+    random_id = uuid.uuid4().hex
     for ignore in range(n):
-        random_id = uuid.uuid4().hex
         with dbc.transaction():
             dbc.put(incr_db_entry(random_id))
 
