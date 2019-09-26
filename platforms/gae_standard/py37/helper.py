@@ -42,6 +42,7 @@ if 'uwsgi-gevent' in os.environ.get('GAE_SERVICE', ''):
     log(logging.WARN, 'monkey-patching for gevent')
 
 
+import base64
 import uuid
 
 from google.cloud import datastore as db, tasks_v2
@@ -84,7 +85,7 @@ def do_tx_task(n):
             app_engine_http_request=dict(
                 http_method='POST',
                 relative_uri='/handleTxTask',
-                body=('x' * 512).encode(),  # encode to bytes
+                body=base64.b64encode(b'x' * 512),  # encode to bytes
                 app_engine_routing=dict(
                     service='py3',
                     version='txtaskhandler',
@@ -94,6 +95,8 @@ def do_tx_task(n):
                 ),
             ),
         )
+        # TODO: create_task is a synchronous API call; better to NOT block on
+        #       it until we need to commit our tx ... and not a moment before!
         new_task = taskq.create_task(fq_queue_name, task)
         random_id = uuid.uuid4().hex
         try:
