@@ -5,6 +5,7 @@ import math
 import os
 import subprocess
 import sys
+import time
 
 import requests
 
@@ -54,14 +55,22 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
 
     def deploy_all(self, count):
         os.chdir(self.path)
-        for pd in self.deployments:
-            self.__use_framework(self.path, pd.framework)
-            open('app.yaml', 'w').write(pd.cfg)
-            subprocess.check_call(pd.deploy_cmd)
-            if pd.post_deploy:
-                pd.post_deploy(pd.service, pd.version)
-            count += 1
-            print 'deployment #%d completed' % count
+        deploy_time_log_fn = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            'deploy_log.tsv')
+        with open(deploy_time_log_fn, 'a') as fout_deploy_log:
+            for pd in self.deployments:
+                self.__use_framework(self.path, pd.framework)
+                open('app.yaml', 'w').write(pd.cfg)
+                start = time.time()
+                subprocess.check_call(pd.deploy_cmd)
+                end = time.time()
+                print >> fout_deploy_log, '%s\t%f\t%s' % (
+                    pd.service, end - start, pd.version)
+                if pd.post_deploy:
+                    pd.post_deploy(pd.service, pd.version)
+                count += 1
+                print 'deployment #%d completed' % count
         return count
 
     def print_stats(self):
