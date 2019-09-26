@@ -1,0 +1,5 @@
+__pycache__
+app.yaml
+main.js
+node_modules
+template-generated.yaml
