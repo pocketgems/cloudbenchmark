@@ -113,6 +113,6 @@ def incr_db_entry(some_id):
     if not x:
         x = db.Entity(key=key,
                       exclude_from_indexes=('count',))
-    x['count'] = 0
+        x['count'] = 0
     x['count'] += 1
     return x
