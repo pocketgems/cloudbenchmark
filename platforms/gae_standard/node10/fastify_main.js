@@ -20,9 +20,10 @@ fastify.get('/test/noop', async (req, reply) => {
 fastify.get('/test/sleep', async (req, reply) => {
     const s = +req.query.s || 1;
     await helper.sleep(s);
+    reply.send();
 });
 
-fastify.get('/test/data', (req, reply) => {
+fastify.get('/test/data', async (req, reply) => {
     const sz = +req.query.sz || Math.pow(2, 20);
     reply.send('x'.repeat(sz));
 });
