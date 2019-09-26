@@ -78,7 +78,8 @@ def make_test_urls(project, tests, secs, num_conns):
         to_try.extend(['%s-%s' % (framework, x)
                        for x in PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON])
     to_try.extend(PY3_UVICORN_ENTRYPOINTS)
-    for test in tests:
+    # python 3 only has narrow tests deployed to limit # of versions
+    for test in list(set(tests) & set(NARROW_TESTS)):
         for framework_and_entrypoint in to_try:
                 version = '%s-%s' % (framework_and_entrypoint, test)
                 urls.append(BENCHMARKER_URL_FMT % (
