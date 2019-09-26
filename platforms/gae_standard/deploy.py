@@ -43,7 +43,7 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
                 version = 'vdefault'
                 cfg = self.cfg  # default is implied
                 assert not entrypoint_cfg
-            cmd = ['gcloud', 'app', 'deploy', '--quiet',
+            cmd = ['gcloud', 'app', 'deploy', '--quiet', '--no-promote',
                    '--project', project_name,
                    '--version', version]
             # beta app deploy is required to use VPC connector (for Redis)
