@@ -8,15 +8,15 @@ const dbc = new Datastore();
 const {CloudTasksClient} = require('@google-cloud/tasks');
 const taskq = new CloudTasksClient({keyFilename: 'cloudtasksaccount.json'});
 
-if (process.env.REDIS_HOST) {
-    const rcache = require('redis').createClient({
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT,
-    });
+const rcache = (process.env.REDIS_HOST ? require('async-redis').createClient({
+    host: process.env.REDIS_HOST,
+    port: +process.env.REDIS_PORT,
+}) : null);
+if (rcache) {
+    rcache.on('error', err => console.error('Redis Error:', err));
 }
 else {
-    console.log('missing redis creds');
-    const rcache = null;
+    console.log('rcache env vars not supplied');
 }
 
 exports.sleep = (secs) => {
@@ -32,6 +32,8 @@ exports.doMemcache = async (n, sz) => {
     for (let i = 0; i < n; i++) {
         const ret = await rcache.get(key);
         if (ret !== val) {
+            console.log('value from cache=', ret);
+            console.log('value expected=', val);
             throw new Error('value in cache is wrong');
         }
     }
@@ -87,7 +89,6 @@ exports.doTxTask = async (n) => {
             await tx.save([counter, txDoneSentinel]);
             const [response] = await taskFuture;
             const taskName = response.name;
-            console.log(`Created task ${taskName}`);
             await tx.commit();
         }
         catch (err) {
