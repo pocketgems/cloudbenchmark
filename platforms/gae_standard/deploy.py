@@ -60,7 +60,7 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
             'deploy_log.tsv')
         with open(deploy_time_log_fn, 'a') as fout_deploy_log:
             for pd in self.deployments:
-                self.__use_framework(self.path, pd.framework)
+                self.__use_framework(self.name, self.path, pd.framework)
                 open('app.yaml', 'w').write(pd.cfg)
                 start = time.time()
                 subprocess.check_call(pd.deploy_cmd)
@@ -84,9 +84,11 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
         return all_services, all_service_version_pairs
 
     @staticmethod
-    def __use_framework(runtime_dir, framework):
-        main_path = os.path.join(runtime_dir, 'main.py')
-        framework_path = os.path.join(runtime_dir, '%s_main.py' % framework)
+    def __use_framework(runtime, runtime_dir, framework):
+        ext = 'js' if 'node' in runtime else 'py'
+        main_path = os.path.join(runtime_dir, 'main.%s' % ext)
+        framework_path = os.path.join(runtime_dir, '%s_main.%s' % (
+            framework, ext))
         subprocess.check_call(['cp', framework_path, main_path])
 
 
@@ -238,6 +240,16 @@ def queue_gae_standard_python3_deployments(deployer):
             deployer.add_deploy('py37', framework, entrypoint)
 
 
+def queue_gae_standard_node10_deployments(deployer):
+    """Prepares the NodeJS 10 services.
+
+    Total Versions = 2 * 6 = 12
+    """
+    for framework in ('express', 'fastify'):
+        deployer.add_deploy('node10', framework,
+                            Entrypoint('f1-solo', None), TESTS)
+
+
 def set_scaling_limit(project_name, service, version, limit):
     import google.auth
     import google.auth.transport.requests
@@ -275,6 +287,7 @@ def main():
     deployer.add_deploy('default', 'webapp', Entrypoint('default', None))
     queue_gae_standard_python2_deployments(deployer)
     queue_gae_standard_python3_deployments(deployer)
+    queue_gae_standard_node10_deployments(deployer)
     deployer.print_stats()
     deployer.deploy_all()
 
