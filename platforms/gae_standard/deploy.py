@@ -249,7 +249,7 @@ def queue_gae_standard_python3_deployments(deployer):
         else:
             frameworks = ('fastapi',)
         for framework in frameworks:
-            deployer.add_deploy('py37', framework, entrypoint, NARROW_TESTS)
+            deployer.add_deploy('py37', framework, entrypoint, TESTS)
 
 
 def queue_gae_standard_node10_deployments(deployer):
