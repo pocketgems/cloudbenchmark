@@ -43,8 +43,8 @@ class MemcacheAPI(webapp.RequestHandler):
 class DbTxAPI(webapp.RequestHandler):
     """Does `n` sequential datastore transactions. No contention."""
     def get(self):
+        random_id = uuid.uuid4().hex
         for ignore in xrange(int(self.request.get('n', 5))):
-            random_id = uuid.uuid4().hex
             self.incr(random_id)
 
     @staticmethod
