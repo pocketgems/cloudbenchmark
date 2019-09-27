@@ -195,7 +195,7 @@ def get_entrypoints_for_py3():
     uwsgi = 'uwsgi --http :$PORT --wsgi-file main.py --callable app '
 
     # multi-threaded processes (2 configurations to test)
-    for num_workers, num_threads in ((1, 3), (2, 3)):
+    for i, (num_workers, num_threads) in enumerate([(1, 80), (1, 10)]):
         name = 'gunicorn-thread%dw%dt' % (num_workers, num_threads)
         cmd = (gunicorn + ' --threads=%d') % (
             'gthread', num_workers, num_threads)
