@@ -18,28 +18,18 @@ PendingRequest = namedtuple('PendingRequest', ('url', 'future'))
 
 PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON = (
     'gunicorn-default',
+
+    'gunicorn-thread1w80t',
+    'gunicorn-thread1w10t',
+    'uwsgi-thread1w80t',
+    'uwsgi-thread1w10t',
+
     'gunicorn-gevent1w80c',
-    'gunicorn-gevent2w40c',
-    'gunicorn-gevent3w26c',
-    'gunicorn-meinheld1w',
-    'gunicorn-meinheld2w',
-    'gunicorn-meinheld3w',
-    'gunicorn-processes1w',
-    'gunicorn-processes2w',
-    'gunicorn-processes3w',
-    'gunicorn-thread1w3t',
-    'gunicorn-thread2w3t',
     'uwsgi-gevent1w80c',
-    'uwsgi-gevent2w40c',
-    'uwsgi-gevent3w26c',
-    'uwsgi-processes2w',
-    'uwsgi-thread1w3t',
-    'uwsgi-thread2w3t',
+    'gunicorn-meinheld1w',
 )
 PY3_UVICORN_ENTRYPOINTS = (
     'fastapi-gunicorn-uvicorn1w',
-    'fastapi-gunicorn-uvicorn2w',
-    'fastapi-gunicorn-uvicorn3w',
 )
 
 
@@ -95,8 +85,7 @@ def make_test_urls(project, tests, secs, num_conns, limit_to_versions):
         to_try.extend(['%s-%s' % (framework, x)
                        for x in PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON])
     to_try.extend(PY3_UVICORN_ENTRYPOINTS)
-    # python 3 only has narrow tests deployed to limit # of versions
-    for test in list(set(tests) & set(NARROW_TESTS)):
+    for test in tests:
         for framework_and_entrypoint in to_try:
             version = '%s-%s' % (framework_and_entrypoint, test)
             add_if_needed(urls, limit_to_versions, project, secs, test,
