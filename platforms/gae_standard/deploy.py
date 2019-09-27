@@ -210,16 +210,8 @@ def get_entrypoints_for_py3():
         entrypoints.append(Entrypoint(name, gunicorn % (
             'uvicorn.workers.UvicornWorker', num_workers)))
 
-    # 3 worker amounts to test for everything else
-    for num_workers in (1, 2, 3):
-        # processes
-        name = 'gunicorn-processes%dw' % num_workers
-        entrypoints.append(Entrypoint(name, gunicorn % ('sync', num_workers)))
-        if num_workers == 2:
-            name = 'uwsgi-processes%dw' % num_workers
-            entrypoints.append(Entrypoint(name, uwsgi + (
-                '--processes=%d' % num_workers)))
-
+    # just a single worker for greenlet-based
+    for num_workers in (1,):
         # greenlets
         # each worker can handle an equal share of connections (fine when work
         # is extremely uniform)
