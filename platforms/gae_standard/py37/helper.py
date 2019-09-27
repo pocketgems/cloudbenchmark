@@ -1,9 +1,17 @@
-import logging
 import os
 
 APP_ID = os.environ.get('GAE_APPLICATION', '').replace('s~', '')
+# if running uwsgi+gevent (ONLY) then we need to monkeypatch because it doesn't
+# monkey-patch for us
+if 'gevent' in os.environ.get('GAE_VERSION', ''):
+    import gevent.monkey
+    gevent.monkey.patch_all()
+    # datastore API will hang without this
+    import grpc.experimental.gevent as grpc_gevent
+    grpc_gevent.init_gevent()
 
 
+import logging
 if APP_ID:  # running in the dev server
     import google.cloud.logging
     from google.cloud.logging.resource import Resource
@@ -32,14 +40,6 @@ if APP_ID:  # running in the dev server
 else:
     def log(severity, msg, *args):
         logging.log(severity, msg, *args)
-
-
-# if running uwsgi+gevent (ONLY) then we need to monkeypatch because it doesn't
-# monkey-patch for us
-if 'uwsgi-gevent' in os.environ.get('GAE_SERVICE', ''):
-    import gevent.monkey
-    gevent.monkey.patch_all()
-    log(logging.WARN, 'monkey-patching for gevent')
 
 
 import base64
