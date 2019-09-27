@@ -190,8 +190,8 @@ def get_entrypoints_for_py3():
         Entrypoint('gunicorn-default', ''),  # use the default
     ]
 
-    gunicorn = ('gunicorn --preload --worker-class=%s --workers=%d '
-                '--bind=:$PORT main:app --log-level warning')
+    gunicorn = ('gunicorn --worker-class %s --workers %d '
+                '--bind :$PORT main:app --log-level warning')
     uwsgi = 'uwsgi --http :$PORT --wsgi-file main.py --callable app '
 
     # multi-threaded processes (2 configurations to test)
