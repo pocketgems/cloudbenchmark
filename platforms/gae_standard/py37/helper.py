@@ -9,10 +9,25 @@ if 'gevent' in os.environ.get('GAE_VERSION', ''):
     # datastore API will hang without this
     import grpc.experimental.gevent as grpc_gevent
     grpc_gevent.init_gevent()
-
 elif 'meinheld' in os.environ.get('GAE_VERSION', ''):
     from meinheld import patch
     patch.patch_all()
+
+
+# ensure the connection pool is big enough for each worker (max workers is 80,
+# since each instance can only handle at most 80 concurrent connections)
+MAX_CONCURRENT_REQUESTS = 80
+from urllib3 import connectionpool, poolmanager
+class MyHTTPConnectionPool(connectionpool.HTTPConnectionPool):
+    def __init__(self, *args, **kwargs):
+        kwargs['maxsize'] = MAX_CONCURRENT_REQUESTS
+        super(MyHTTPConnectionPool, self).__init__(*args, **kwargs)
+poolmanager.pool_classes_by_scheme['http'] = MyHTTPConnectionPool
+class MyHTTPSConnectionPool(connectionpool.HTTPSConnectionPool):
+    def __init__(self, *args, **kwargs):
+        kwargs['maxsize'] = MAX_CONCURRENT_REQUESTS
+        super(MyHTTPSConnectionPool, self).__init__(*args, **kwargs)
+poolmanager.pool_classes_by_scheme['https'] = MyHTTPSConnectionPool
 
 
 import logging
