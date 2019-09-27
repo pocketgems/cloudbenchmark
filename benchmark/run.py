@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """The script runs orchestrates the running of benchmarks in parallel."""
 from collections import namedtuple
+import re
 import sys
 
 from requests_futures.sessions import FuturesSession
@@ -62,7 +63,23 @@ def get_responses(urls):
     return [resps[url] for url in urls]
 
 
-def make_test_urls(project, tests, secs, num_conns):
+def is_version_ignored(limit_to_versions, version):
+    if limit_to_versions is None:
+        return False
+    for regex in limit_to_versions:
+        if regex.search(version):
+            return False
+    return True
+
+
+def add_if_needed(urls, limit_to_versions,
+                  project, secs, test, service, version, num_conns):
+    if not is_version_ignored(limit_to_versions, version):
+        urls.append(BENCHMARKER_URL_FMT % (
+            project, project, secs, test, service, version, num_conns))
+
+
+def make_test_urls(project, tests, secs, num_conns, limit_to_versions):
     """Returns a list of URLs for running benchmarks."""
     urls = []
     service = 'py27'
@@ -70,8 +87,8 @@ def make_test_urls(project, tests, secs, num_conns):
         for icls in ICLASSES:
             for framework in ('webapp',):
                 version = '%s-%s-solo-%s' % (framework, icls, test)
-                urls.append(BENCHMARKER_URL_FMT % (
-                    project, project, secs, test, service, version, num_conns))
+                add_if_needed(urls, limit_to_versions, project, secs, test,
+                              service, version, num_conns)
     service = 'py37'
     to_try = []
     for framework in ('falcon', 'flask'):
@@ -81,21 +98,26 @@ def make_test_urls(project, tests, secs, num_conns):
     # python 3 only has narrow tests deployed to limit # of versions
     for test in list(set(tests) & set(NARROW_TESTS)):
         for framework_and_entrypoint in to_try:
-                version = '%s-%s' % (framework_and_entrypoint, test)
-                urls.append(BENCHMARKER_URL_FMT % (
-                    project, project, secs, test, service, version, num_conns))
+            version = '%s-%s' % (framework_and_entrypoint, test)
+            add_if_needed(urls, limit_to_versions, project, secs, test,
+                          service, version, num_conns)
     service = 'node10'
     for test in tests:
-        for framework in ('express', 'fastify'):
+        for framework in ('express', 'fastify',):
             version = '%s-f1-solo-%s' % (framework, test)
-            urls.append(BENCHMARKER_URL_FMT % (
-                project, project, secs, test, service, version, num_conns))
+            add_if_needed(urls, limit_to_versions, project, secs, test,
+                          service, version, num_conns)
     return urls
 
 
 def main():
     """Runs tests and displays results."""
     project = sys.argv[-3]
+    if ':' in project:
+        project, limit_to_versions = project.split(':')
+        limit_to_versions = [re.compile(x)
+                             for x in limit_to_versions.split(',')]
+
     test = sys.argv[-2]
     secs = int(sys.argv[-1])
     if test != 'all':
@@ -105,7 +127,7 @@ def main():
 
     # warmup and try to measure the best latency while handling only 1 request
     # at a time
-    short_test_urls = make_test_urls(project, tests, 10, 1)
+    short_test_urls = make_test_urls(project, tests, 10, 1, limit_to_versions)
     print 'warming up %d versions ...' % len(short_test_urls)
     best_resps = get_responses(short_test_urls)
 
@@ -113,7 +135,8 @@ def main():
     # than the maximum concurrent requests allowed by the instance to ensure we
     # saturate it)
     print 'running the full tests ...'
-    resps = get_responses(make_test_urls(project, tests, secs, 88))
+    resps = get_responses(make_test_urls(project, tests, secs, 88,
+                                         limit_to_versions))
 
     # print the test results, using the best performing request for min latency
     for i, resp in enumerate(resps):
