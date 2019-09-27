@@ -3,6 +3,7 @@ from collections import namedtuple
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -14,7 +15,6 @@ INSTANCE_CLASSES = ('F1', 'F2', 'F4')
 MAX_CONCURRENT_REQ = 80  # also in template.ymal (GAE max is 80)
 TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask')
 NARROW_TESTS = ('noop', 'memcache', 'dbtx', 'txtask')
-
 
 Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
 PendingDeployment = namedtuple('PendingDeployment', (
@@ -53,13 +53,23 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
             self.deployments.append(PendingDeployment(
                 framework, version, service, cfg, cmd, post))
 
-    def deploy_all(self, count):
+    def is_version_ignored(self, limit_to_versions, version):
+        if limit_to_versions is None:
+            return False
+        for regex in limit_to_versions:
+            if regex.search(version):
+                return False
+        return True
+
+    def deploy_all(self, count, limit_to_versions):
         os.chdir(self.path)
         deploy_time_log_fn = os.path.join(
             os.path.abspath(os.path.dirname(__file__)),
             'deploy_log.tsv')
         with open(deploy_time_log_fn, 'a') as fout_deploy_log:
             for pd in self.deployments:
+                if self.is_version_ignored(limit_to_versions, pd.version):
+                    continue
                 self.__use_framework(self.name, self.path, pd.framework)
                 open('app.yaml', 'w').write(pd.cfg)
                 start = time.time()
@@ -73,15 +83,20 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
                 print 'deployment #%d completed' % count
         return count
 
-    def print_stats(self):
+    def print_stats(self, limit_to_versions):
         all_services = set([])
         all_service_version_pairs = set([])
+        ignored_pairs = set([])
         for pd in self.deployments:
             all_services.add(pd.service)
-            all_service_version_pairs.add('-'.join([pd.service, pd.version]))
-        print 'GAE %s - %d service(s) and %d service-version pair(s)' % (
-            self.name, len(all_services), len(all_service_version_pairs))
-        return all_services, all_service_version_pairs
+            sv = '-'.join([pd.service, pd.version])
+            all_service_version_pairs.add(sv)
+            if self.is_version_ignored(limit_to_versions, pd.version):
+                ignored_pairs.add(sv)
+        print 'GAE %s - %d service(s) and %d service-version pair(s)%s' % (
+            self.name, len(all_services), len(all_service_version_pairs),
+            (' (%d ignored)' % len(ignored_pairs)) if ignored_pairs else '')
+        return all_services, all_service_version_pairs, ignored_pairs
 
     @staticmethod
     def __use_framework(runtime, runtime_dir, framework):
@@ -93,10 +108,11 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
 
 
 class GAEStandardDeployer(object):
-    def __init__(self, project_name):
+    def __init__(self, project_name, limit_to_versions):
         self.project_name = project_name
         # we will deploy the runtimes in the order they are added
         self.runtimes = []
+        self.limit_to_versions = frozenset(limit_to_versions)
 
     def __get_runtime(self, runtime_name):
         for runtime in self.runtimes:
@@ -122,17 +138,20 @@ class GAEStandardDeployer(object):
     def deploy_all(self):
         count = 0
         for runtime in self.runtimes:
-            count = runtime.deploy_all(count)
+            count = runtime.deploy_all(count, self.limit_to_versions)
 
     def print_stats(self):
         all_services = set()
         all_service_version_pairs = set()
+        ignored_pairs = set()
         for runtime in self.runtimes:
-            ret = runtime.print_stats()
+            ret = runtime.print_stats(self.limit_to_versions)
             all_services |= ret[0]
             all_service_version_pairs |= ret[1]
-        print 'GAE TOTAL - %d service(s) and %d service-version pair(s)' % (
-            len(all_services), len(all_service_version_pairs))
+            ignored_pairs |= ret[2]
+        print 'GAE TOTAL - %d service(s) and %d service-version pair(s)%s' % (
+            len(all_services), len(all_service_version_pairs),
+            (' (%d ignored)' % len(ignored_pairs)) if ignored_pairs else '')
         assert len(all_services) <= 105, "can't have more than 105 services"
         assert len(all_service_version_pairs) <= 210, ("can't have more than "
                                                        "210 versions")
@@ -278,10 +297,16 @@ def set_scaling_limit(project_name, service, version, limit):
 
 def main():
     if not sys.argv or 'deploy.py' in sys.argv[-1]:
-        print 'USAGE: ./deploy.py PROJECT_NAME'
+        print 'USAGE: ./deploy.py PROJECT_NAME[:VERSIONS_TO_DEPLOY]'
         sys.exit(1)
-    project_name = sys.argv[-1]
-    deployer = GAEStandardDeployer(project_name)
+    if ':' in sys.argv[-1]:
+        project_name, limit_to_versions = sys.argv[-1].split(':')
+        limit_to_versions = [re.compile(x)
+                             for x in limit_to_versions.split(',')]
+    else:
+        project_name = sys.argv[-1]
+        limit_to_versions = None
+    deployer = GAEStandardDeployer(project_name, limit_to_versions)
 
     # every app engine project requires a default service
     deployer.add_deploy('default', 'webapp', Entrypoint('default', None))
