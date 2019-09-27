@@ -192,7 +192,8 @@ def get_entrypoints_for_py3():
 
     gunicorn = ('gunicorn --worker-class %s --workers %d '
                 '--bind :$PORT main:app --log-level warning')
-    uwsgi = 'uwsgi --http :$PORT --wsgi-file main.py --callable app '
+    uwsgi = ('uwsgi --http-socket :$PORT --wsgi-file main.py --callable app '
+             '--disable-logging --master ')
 
     # multi-threaded processes (2 configurations to test)
     for i, (num_workers, num_threads) in enumerate([(1, 80), (1, 10)]):
