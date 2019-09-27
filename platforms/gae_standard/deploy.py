@@ -203,6 +203,12 @@ def get_entrypoints_for_py3():
         name = 'uwsgi-thread%dw%dt' % (num_workers, num_threads)
         entrypoints.append(Entrypoint(name, uwsgi + (
             '--processes=%d --threads=%d' % (num_workers, num_threads))))
+        if i:
+            continue  # uvicorn cannot be told how many threads to use atm
+        # ASGI ... under the hood, uses a threadpool for concurrency
+        name = 'gunicorn-uvicorn%dw' % num_workers
+        entrypoints.append(Entrypoint(name, gunicorn % (
+            'uvicorn.workers.UvicornWorker', num_workers)))
 
     # 3 worker amounts to test for everything else
     for num_workers in (1, 2, 3):
@@ -230,10 +236,6 @@ def get_entrypoints_for_py3():
         cmd = gunicorn % ('egg:meinheld#gunicorn_worker', num_workers)
         entrypoints.append(Entrypoint(name, cmd))
 
-        # ASGI
-        name = 'gunicorn-uvicorn%dw' % num_workers
-        entrypoints.append(Entrypoint(name, gunicorn % (
-            'uvicorn.workers.UvicornWorker', num_workers)))
     return entrypoints
 
 
