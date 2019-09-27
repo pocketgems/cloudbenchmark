@@ -10,6 +10,10 @@ if 'gevent' in os.environ.get('GAE_VERSION', ''):
     import grpc.experimental.gevent as grpc_gevent
     grpc_gevent.init_gevent()
 
+elif 'meinheld' in os.environ.get('GAE_VERSION', ''):
+    from meinheld import patch
+    patch.patch_all()
+
 
 import logging
 if APP_ID:  # running in the dev server
