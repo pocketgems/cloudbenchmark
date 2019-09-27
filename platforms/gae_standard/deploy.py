@@ -130,8 +130,7 @@ class GAEStandardDeployer(object):
         self.runtimes.append(runtime)
         return runtime
 
-    def add_deploy(self, runtime, framework, entrypoint, tests=NARROW_TESTS,
-                   post=None):
+    def add_deploy(self, runtime, framework, entrypoint, tests, post=None):
         self.__get_runtime(runtime).add_deploy(
             self.project_name, framework, entrypoint, tests, post)
 
@@ -256,7 +255,7 @@ def queue_gae_standard_python3_deployments(deployer):
         else:
             frameworks = ('fastapi',)
         for framework in frameworks:
-            deployer.add_deploy('py37', framework, entrypoint)
+            deployer.add_deploy('py37', framework, entrypoint, NARROW_TESTS)
 
 
 def queue_gae_standard_node10_deployments(deployer):
@@ -309,7 +308,7 @@ def main():
     deployer = GAEStandardDeployer(project_name, limit_to_versions)
 
     # every app engine project requires a default service
-    deployer.add_deploy('default', 'webapp', Entrypoint('default', None))
+    deployer.add_deploy('default', 'webapp', Entrypoint('default', None), None)
     queue_gae_standard_python2_deployments(deployer)
     queue_gae_standard_python3_deployments(deployer)
     queue_gae_standard_node10_deployments(deployer)
