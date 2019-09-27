@@ -222,8 +222,7 @@ def get_entrypoints_for_py3():
         entrypoints.append(Entrypoint(name, cmd))
         name = 'uwsgi-gevent%dw%dc' % (num_workers, max_conns_per_worker)
         entrypoints.append(Entrypoint(name, uwsgi + (
-            '--processes=%d --gevent=%d' % (num_workers,
-                                            max_conns_per_worker))))
+            '--gevent %d' % max_conns_per_worker)))
         name = 'gunicorn-meinheld%dw' % num_workers
         cmd = gunicorn % ('egg:meinheld#gunicorn_worker', num_workers)
         entrypoints.append(Entrypoint(name, cmd))
