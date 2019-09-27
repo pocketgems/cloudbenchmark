@@ -220,7 +220,7 @@ def get_entrypoints_for_py3():
         # is extremely uniform)
         max_conns_per_worker = int(math.ceil(MAX_CONCURRENT_REQ / num_workers))
         name = 'gunicorn-gevent%dw%dc' % (num_workers, max_conns_per_worker)
-        cmd = (gunicorn +  '--worker-connections=%d') % (
+        cmd = (gunicorn +  ' --worker-connections=%d') % (
             'gevent', num_workers, max_conns_per_worker)
         entrypoints.append(Entrypoint(name, cmd))
         name = 'uwsgi-gevent%dw%dc' % (num_workers, max_conns_per_worker)
