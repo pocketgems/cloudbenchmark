@@ -26,7 +26,7 @@ PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON = (
 
     'gunicorn-gevent1w80c',
     'uwsgi-gevent1w80c',
-    'gunicorn-meinheld1w',
+    #'gunicorn-meinheld1w',
 )
 PY3_UVICORN_ENTRYPOINTS = (
     'fastapi-gunicorn-uvicorn1w',
