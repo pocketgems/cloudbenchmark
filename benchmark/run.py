@@ -16,7 +16,7 @@ BENCHMARKER_URL_FMT = (
 PendingRequest = namedtuple('PendingRequest', ('url', 'future'))
 
 
-PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON = (
+PY3_ENTRY_TYPES_FOR_WSGI = (
     'gunicorn-default',
 
     'gunicorn-thread1w80t',
@@ -28,7 +28,7 @@ PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON = (
     'uwsgi-gevent1w80c',
     #'gunicorn-meinheld1w',
 )
-PY3_UVICORN_ENTRYPOINTS = (
+PY3_ENTRY_TYPES_FOR_ASGI = (
     'fastapi-gunicorn-uvicorn1w',
 )
 
@@ -83,8 +83,8 @@ def make_test_urls(project, tests, secs, num_conns, limit_to_versions):
     to_try = []
     for framework in ('falcon', 'flask'):
         to_try.extend(['%s-%s' % (framework, x)
-                       for x in PY3_ENTRY_TYPES_FOR_FLASK_AND_FALCON])
-    to_try.extend(PY3_UVICORN_ENTRYPOINTS)
+                       for x in PY3_ENTRY_TYPES_FOR_WSGI])
+    to_try.extend(PY3_ENTRY_TYPES_FOR_ASGI)
     for test in tests:
         for framework_and_entrypoint in to_try:
             version = '%s-%s' % (framework_and_entrypoint, test)
