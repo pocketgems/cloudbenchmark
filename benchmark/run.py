@@ -106,6 +106,8 @@ def main():
         project, limit_to_versions = project.split(':')
         limit_to_versions = [re.compile(x)
                              for x in limit_to_versions.split(',')]
+    else:
+        limit_to_versions = None
 
     test = sys.argv[-2]
     secs = int(sys.argv[-1])
