@@ -211,7 +211,7 @@ def get_entrypoints_for_py3():
         name = 'gunicorn-uvicorn%dw' % num_workers
         entrypoints.append(Entrypoint(name, gunicorn % (
             'uvicorn.workers.UvicornWorker', num_workers)))
-        name = 'gunicorn-uvicorn-ctpe%dw' % num_workers
+        name = 'gunicorn-uv2-%dw' % num_workers
         entrypoints.append(Entrypoint(name, gunicorn % (
             'uvicorn.workers.UvicornWorker', num_workers)))
 

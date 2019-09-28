@@ -14,7 +14,7 @@ from starlette.responses import Response
 
 # set default executor to thread pool with # threads = # requests ...  plus
 # more if each thread may queue up more than 1 concurrent operation each
-if '-ctpe' in os.environ.get('GAE_VERSION', ''):  # only customize sometimes
+if '-uv2-' in os.environ.get('GAE_VERSION', ''):  # only customize sometimes
     import asyncio
     import concurrent.futures
     asyncio.get_event_loop().set_default_executor(
