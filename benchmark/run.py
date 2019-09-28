@@ -6,7 +6,9 @@ import sys
 
 from requests_futures.sessions import FuturesSession
 
-ALL_TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask')
+ALL_TESTS = ('noop', 'sleep',
+             #'data',
+             'memcache', 'dbtx', 'txtask')
 NARROW_TESTS = ('noop', 'memcache', 'dbtx', 'txtask')
 ICLASSES = ('f1', 'f2', 'f4')
 BENCHMARKER_URL_FMT = (
@@ -30,7 +32,7 @@ PY3_ENTRY_TYPES_FOR_WSGI = (
 )
 PY3_ENTRY_TYPES_FOR_ASGI = (
     'fastapi-gunicorn-uvicorn1w',
-    'fastapi-gunicorn-uv2-1w',
+    #'fastapi-gunicorn-uv2-1w',
 )
 
 
@@ -82,7 +84,10 @@ def make_test_urls(project, tests, secs, num_conns, limit_to_versions):
                               service, version, num_conns)
     service = 'py37'
     to_try = []
-    for framework in ('falcon', 'flask'):
+    for framework in (
+            'falcon',
+            #'flask',
+    ):
         to_try.extend(['%s-%s' % (framework, x)
                        for x in PY3_ENTRY_TYPES_FOR_WSGI])
     to_try.extend(PY3_ENTRY_TYPES_FOR_ASGI)
