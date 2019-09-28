@@ -30,6 +30,7 @@ PY3_ENTRY_TYPES_FOR_WSGI = (
 )
 PY3_ENTRY_TYPES_FOR_ASGI = (
     'fastapi-gunicorn-uvicorn1w',
+    'fastapi-gunicorn-uvicorn-ctpe1w',
 )
 
 

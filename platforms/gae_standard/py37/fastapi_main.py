@@ -4,11 +4,25 @@ from helper import APP_ID, dbc, do_db_tx, do_memcache, do_tx_task, log
 import functools
 import inspect
 import logging
+import os
 import time
 import traceback
 
 from fastapi import FastAPI
 from starlette.responses import Response
+
+
+# set default executor to thread pool with # threads = # requests ...  plus
+# more if each thread may queue up more than 1 concurrent operation each
+if '-ctpe' in os.environ.get('GAE_VERSION', ''):  # only customize sometimes
+    import asyncio
+    import concurrent.futures
+    asyncio.get_event_loop().set_default_executor(
+        concurrent.futures.ThreadPoolExecutor(max_workers=100))
+
+
+
+
 
 if APP_ID:
     # disable documentation sharing on GAE
