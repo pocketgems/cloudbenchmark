@@ -193,7 +193,7 @@ def get_entrypoints_for_py3():
     gunicorn = ('gunicorn --worker-class %s --workers %d '
                 '--bind :$PORT main:app --log-level warning')
     uwsgi = ('uwsgi --http-socket :$PORT --wsgi-file main.py --callable app '
-             '--disable-logging --master ')
+             '--disable-logging ')
 
     # multi-threaded processes (2 configurations to test)
     for i, (num_workers, num_threads) in enumerate([(1, 80), (1, 10)]):
@@ -203,7 +203,8 @@ def get_entrypoints_for_py3():
         entrypoints.append(Entrypoint(name, cmd))
         name = 'uwsgi-thread%dw%dt' % (num_workers, num_threads)
         entrypoints.append(Entrypoint(name, uwsgi + (
-            '--processes=%d --threads=%d' % (num_workers, num_threads))))
+            '--master --processes=%d --threads=%d' % (
+                num_workers, num_threads))))
         if i:
             continue  # uvicorn cannot be told how many threads to use atm
         # ASGI ... under the hood, uses a threadpool for concurrency
