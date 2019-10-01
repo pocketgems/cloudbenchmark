@@ -8,8 +8,8 @@ from requests_futures.sessions import FuturesSession
 
 ALL_TESTS = ('noop', 'sleep',
              #'data',
-             'memcache', 'dbtx', 'txtask')
-NARROW_TESTS = ('noop', 'memcache', 'dbtx', 'txtask')
+             'memcache', 'dbtx', 'txtask',
+             'dbinter', 'dbinterb', 'dbjson')
 ICLASSES = ('f1', 'f2', 'f4')
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'

@@ -1,6 +1,8 @@
 # import helper first: it monkey-patches I/O if needed
-from helper import do_db_tx, do_memcache, do_tx_task, log
+from helper import (do_db_indir_sync, do_db_indirb, do_db_json, do_db_tx,
+                    do_memcache, do_tx_task, log)
 
+import asyncio
 import logging
 import time
 
@@ -63,3 +65,21 @@ class DbTxAPI(object):
 class TxTaskAPI(object):
     def on_get(self, req, resp):
         do_tx_task(int(req.get_param('n', default=5)))
+
+
+@api('/test/dbjson')
+class DbJsonAPI(object):
+    def on_get(self, req, resp):
+        do_db_json()
+
+
+@api('/test/dbindir')
+class DbIndirAPI(object):
+    def on_get(self, req, resp):
+        resp.body = do_db_indir_sync(int(req.get_param('n', default=3)))
+
+
+@api('/test/dbindirb')
+class DbIndirbAPI(object):
+    def on_get(self, req, resp):
+        resp.body = do_db_indirb(int(req.get_param('n', default=3)))

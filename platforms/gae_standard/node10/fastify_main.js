@@ -47,6 +47,20 @@ fastify.get('/test/txtask', async (req, reply) => {
     reply.send();
 });
 
+fastify.get('/test/dbjson', async (req, reply) => {
+    reply.send(await helper.doDbJson());
+});
+
+fastify.get('/test/dbindir', async (req, reply) => {
+    const n = +req.query.n || 3;
+    reply.send(await helper.doDbIndir(n));
+});
+
+fastify.get('/test/dbindirb', async (req, reply) => {
+    const n = +req.query.n || 3;
+    reply.send(await helper.doDbIndirb(n));
+});
+
 const start = async () => {
   try {
       await fastify.listen(process.env.PORT || 8080);

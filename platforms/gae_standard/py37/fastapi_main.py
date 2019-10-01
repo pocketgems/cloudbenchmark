@@ -1,5 +1,7 @@
 # import helper first: it monkey-patches I/O if needed
-from helper import APP_ID, dbc, do_db_tx, do_memcache, do_tx_task, log
+from helper import (
+    APP_ID, dbc, do_db_indir_async, do_db_indirb, do_db_json, do_db_tx,
+    do_memcache, do_tx_task, log)
 
 import functools
 import inspect
@@ -138,3 +140,19 @@ def DbTxAPI(n: int = 5):
 def TxTaskAPI(n: int = 5):
     """Enqueues a tx task."""
     do_tx_task(n)
+
+
+@API.get('/test/dbjson')
+def DbTxAPI():
+    return Response(content=str(do_db_json()), media_type='text/plain')
+
+
+@app.get('/test/dbindir')
+async def DbIndirAPI(n: int = 3):
+    ret = await do_db_indir_async(n)
+    return Response(content=ret, media_type='text/plain')
+
+
+@API.get('/test/dbindirb')
+def DbIndirbAPI(n: int = 3):
+    return Response(content=do_db_indirb(n), media_type='text/plain')

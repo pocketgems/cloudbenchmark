@@ -1,4 +1,8 @@
+const util = require('util');
 const uuidv4 = require('uuid/v4');
+const zlib = require('zlib');
+const deflate = util.promisify(zlib.deflate);
+const inflate = util.promisify(zlib.inflate);
 
 const APP_ID = (process.env.GAE_APPLICATION || '').replace('s~', '');
 
@@ -124,3 +128,77 @@ async function incrDbEntry(tx, someID) {
         data: data
     };
 }
+
+var bigJson = undefined;
+exports.doDbJson = async () => {
+    if (!bigJson) {
+        const fs = require('fs');
+        bigJson = JSON.parse(fs.readFileSync('big.json', 'utf8'));
+        throw new Error('read from file');  // don't include in benchmark
+    }
+
+    const randomID = uuidv4();
+    const key = dbc.key(['BigJsonHolder', randomID]);
+    const val = await deflate(JSON.stringify(bigJson)) //).toString('utf-8');
+    await dbc.save({
+        key: key,
+        data: [{
+            name: 'data',
+            value: val,
+            excludeFromIndexes: true
+        }]
+    });
+    const [entity] = await dbc.get(key);
+    const input = entity.data;
+    const data = await inflate(input);
+    JSON.parse(data);
+    return data.length.toString();
+};
+
+function getRandomKey() {
+    const randomInt = Math.floor(Math.random() * 10000);
+    return dbc.key(['OneInt', randomInt]);
+}
+exports.doDbIndir = async (n) => {
+    const promises = [];
+    for (var i = 0; i < n; i++) {
+        promises.push(getAndThenGetDependency());
+    }
+    const results = await Promise.all(promises);
+    var ret = 0;
+    results.forEach(v => { ret += v; });
+    return ret;
+};
+async function getAndThenGetDependency() {
+    const [x] = await dbc.get(getRandomKey());
+    if (!x) {
+        throw new Error('OneInt entity missing (not yet defined?)');
+    }
+    const keyID = +(x[dbc.KEY].path[1]);
+    const newID = (2 * keyID) % 10000;
+    const subkey = dbc.key(['OneInt', newID]);
+    const [subx] = await dbc.get(subkey);
+    const subID = +(subx[dbc.KEY].path[1]);
+    return subID + newID;
+}
+
+exports.doDbIndirb = async (n) => {
+    const keys = [];
+    for (var i = 0; i < n; i++) {
+        keys.push(getRandomKey());
+    }
+    const [entities] = await dbc.get(keys);
+    if (entities.indexOf(undefined) !== -1) {
+        throw new Error('OneInt entity missing (not yet defined?)');
+    }
+    const newKeys = [];
+    entities.forEach(entity => {
+        const keyID = entity[dbc.KEY].path[1];
+        newKeys.push(dbc.key(['OneInt', (2 * keyID) % 10000]));
+    });
+    const [newEntities] = await dbc.get(newKeys);
+    entities.push(...newEntities);
+    var sum = 0;
+    entities.forEach(v => { sum += (+v[dbc.KEY].path[1]); });
+    return sum.toString();
+};

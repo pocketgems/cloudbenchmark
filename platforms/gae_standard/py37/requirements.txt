@@ -13,3 +13,4 @@ uvicorn==0.9
 ujson
 fastapi
 falcon
+aioify

@@ -13,8 +13,8 @@ import requests
 
 INSTANCE_CLASSES = ('F1', 'F2', 'F4')
 MAX_CONCURRENT_REQ = 80  # also in template.ymal (GAE max is 80)
-TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask')
-NARROW_TESTS = ('noop', 'memcache', 'dbtx', 'txtask')
+TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask',
+         'dbindir', 'dbindirb', 'dbjson')
 
 Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
 PendingDeployment = namedtuple('PendingDeployment', (
@@ -222,8 +222,8 @@ def get_entrypoints_for_py3():
         # is extremely uniform)
         max_conns_per_worker = int(math.ceil(MAX_CONCURRENT_REQ / num_workers))
         name = 'gunicorn-gevent%dw%dc' % (num_workers, max_conns_per_worker)
-        cmd = (gunicorn +  ' --worker-connections=%d') % (
-            'gevent', num_workers, max_conns_per_worker)
+        cmd = (gunicorn % (
+            'gevent', num_workers)) + ' --worker-connections 80'
         entrypoints.append(Entrypoint(name, cmd))
         name = 'uwsgi-gevent%dw%dc' % (num_workers, max_conns_per_worker)
         entrypoints.append(Entrypoint(name, uwsgi + (
@@ -250,7 +250,10 @@ def queue_gae_standard_python3_deployments(deployer):
     # deploy a service for each desired entrypoint X framework X test combo
     for entrypoint in get_entrypoints_for_py3():
         if 'uvicorn' not in entrypoint.name:
-            frameworks = ('falcon', 'flask',)
+            frameworks = (
+                'falcon',
+                'flask',
+            )
         else:
             frameworks = ('fastapi',)
         for framework in frameworks:

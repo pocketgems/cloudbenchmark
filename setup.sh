@@ -38,6 +38,8 @@ gcloud projects create $PROJECTNAME --set-as-default --organization $ORGID
 gcloud beta billing projects link $PROJECTNAME --billing-account=$ACCOUNTID
 
 gcloud app create --region=us-central
+echo "Please go turn on dedicated memcache for your GAE app ... done?"
+read ignore
 
 echo "Please be patient; setting up Memorystore (Redis) is quite slow ..."
 gcloud services enable redis.googleapis.com
@@ -87,3 +89,12 @@ gcloud tasks queues create test \
 pushd benchmark
 ./deploy.sh
 popd
+
+echo "creating datastore entities for benchmarking ..."
+for start in `seq 0 1000 9000`; do
+    if [ $start -ne 0 ]; then
+        echo "   $start done"
+    fi
+    curl -d "s=$start&n=1000" -X POST https://webapp-f1-solo-dbindir-dot-py27-dot-$PROJECTNAME.appspot.com/test/dbindir
+done
+echo '   done creating entites!'

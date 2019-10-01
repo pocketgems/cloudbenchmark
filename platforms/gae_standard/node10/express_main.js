@@ -48,6 +48,20 @@ app.get('/test/txtask', asyncHandler(async (req, res, next) => {
     res.end();
 }));
 
+app.get('/test/dbjson', asyncHandler(async (req, res, next) => {
+    res.send(await helper.doDbJson());
+}));
+
+app.get('/test/dbindir', asyncHandler(async (req, res, next) => {
+    const n = +req.query.n || 3;
+    res.send(await helper.doDbIndir(n));
+}));
+
+app.get('/test/dbindirb', asyncHandler(async (req, res, next) => {
+    const n = +req.query.n || 3;
+    res.send(await helper.doDbIndirb(n));
+}));
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}...`);

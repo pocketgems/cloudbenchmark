@@ -1,5 +1,6 @@
 # import helper first: it monkey-patches I/O if needed
-from helper import dbc, do_db_tx, do_memcache, do_tx_task, log
+from helper import (dbc, do_db_indir_sync, do_db_indirb, do_db_json, do_db_tx,
+                    do_memcache, do_tx_task, log)
 
 import logging
 import time
@@ -103,6 +104,21 @@ def handle_tx_task():
     # in case this task tries to re-run ... but it's a bit faster to not do
     # that, which makes sense because tasks very rarely run more than once.
     return ''
+
+
+@app.route('/test/dbjson')
+def DbJsonAPI():
+    return str(do_db_json())
+
+
+@app.route('/test/dbindir')
+def DbIndirAPI():
+    return do_db_indir_sync(int(request.args.get('n', 3)))
+
+
+@app.route('/test/dbindirb')
+def DbIndirbAPI():
+    return do_db_indirb(int(request.args.get('n', 3)))
 
 
 if __name__ == '__main__':
