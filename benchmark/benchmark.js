@@ -33,7 +33,7 @@ function summarize(result) {
         result.service,
         result.version,
         result.testName,
-        result.requests.mean,
+        result['2xx'] / result.duration,
         result.throughput.mean / 1000,
         result.latency.min,
         result.latency.p50,
