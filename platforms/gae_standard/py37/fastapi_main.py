@@ -1,7 +1,5 @@
 # import helper first: it monkey-patches I/O if needed
-from helper import (
-    APP_ID, dbc, do_db_indir_async, do_db_indirb, do_db_json, do_db_tx,
-    do_memcache, do_tx_task, log)
+from helper import APP_ID, do_db_json, do_memcache, log
 
 import functools
 import inspect
@@ -14,6 +12,12 @@ from fastapi import FastAPI
 from starlette.responses import Response
 
 
+if 'ndb' in os.environ.get('GAE_VERSION', ''):
+    from helper_ndb import do_db_indir_async, do_db_indirb, do_db_tx, do_tx_task
+else:
+    from helper_db import do_db_indir_async, do_db_indirb, do_db_tx, do_tx_task
+
+
 # set default executor to thread pool with # threads = # requests ...  plus
 # more if each thread may queue up more than 1 concurrent operation each
 if '-uv2-' in os.environ.get('GAE_VERSION', ''):  # only customize sometimes
@@ -21,9 +25,7 @@ if '-uv2-' in os.environ.get('GAE_VERSION', ''):  # only customize sometimes
     import concurrent.futures
     asyncio.get_event_loop().set_default_executor(
         concurrent.futures.ThreadPoolExecutor(max_workers=100))
-
-
-
+    log(logging.CRITICAL, 'changed the default event loop executor')
 
 
 if APP_ID:

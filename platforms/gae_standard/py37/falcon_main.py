@@ -1,12 +1,17 @@
 # import helper first: it monkey-patches I/O if needed
-from helper import (do_db_indir_sync, do_db_indirb, do_db_json, do_db_tx,
-                    do_memcache, do_tx_task, log)
+from helper import APP_ID, do_db_json, do_memcache, log
 
-import asyncio
 import logging
+import os
 import time
 
 import falcon
+
+if 'ndb' in os.environ.get('GAE_VERSION', ''):
+    from helper_ndb import do_db_indir_sync, do_db_indirb, do_db_tx, do_tx_task
+else:
+    from helper_db import do_db_indir_sync, do_db_indirb, do_db_tx, do_tx_task
+
 
 app = falcon.API()
 

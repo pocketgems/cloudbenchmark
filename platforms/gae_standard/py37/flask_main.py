@@ -1,14 +1,20 @@
 # import helper first: it monkey-patches I/O if needed
-from helper import (dbc, do_db_indir_sync, do_db_indirb, do_db_json, do_db_tx,
-                    do_memcache, do_tx_task, log)
+from helper import APP_ID, do_db_json, do_memcache, log
 
 import logging
+import os
 import time
 import traceback
 
 from flask import Flask, request, Response
 from google.cloud import datastore as db
 from werkzeug.exceptions import InternalServerError
+
+if 'ndb' in os.environ.get('GAE_VERSION', ''):
+    from helper_ndb import do_db_indir_sync, do_db_indirb, do_db_tx, do_tx_task
+else:
+    from helper_db import do_db_indir_sync, do_db_indirb, do_db_tx, do_tx_task
+
 
 app = Flask(__name__)
 
