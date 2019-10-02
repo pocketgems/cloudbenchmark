@@ -14,7 +14,7 @@ import requests
 TESTS = set([
     'noop', 'sleep', #'data',
     'memcache', 'dbtx', 'txtask',
-    'dbindir', 'dbindirb', 'json'
+    'dbindir', 'dbindirb', 'dbjson'
 ])
 PY3TESTS = TESTS | set(['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
 ICLASSES = ('f1', 'f2', 'f4')
@@ -34,12 +34,12 @@ KILL_FLAG = False
 PY3_ENTRY_TYPES_FOR_WSGI = (
     'gunicorn-default',
 
-    'gunicorn-thread1w80t',
-    'gunicorn-thread1w10t',
+    'gunicorn-thrd1w80t',
+    'gunicorn-thrd1w10t',
     'uwsgi-thread1w80t',
     'uwsgi-thread1w10t',
 
-    'gunicorn-gevent1w80c',
+    'gunicorn-gevent1w',
     'uwsgi-gevent1w80c',
     # 'gunicorn-meinheld1w',
 )

@@ -198,7 +198,7 @@ def get_entrypoints_for_py3():
 
     # multi-threaded processes (2 configurations to test)
     for i, (num_workers, num_threads) in enumerate([(1, 80), (1, 10)]):
-        name = 'gunicorn-thread%dw%dt' % (num_workers, num_threads)
+        name = 'gunicorn-thrd%dw%dt' % (num_workers, num_threads)
         cmd = (gunicorn + ' --threads=%d') % (
             'gthread', num_workers, num_threads)
         entrypoints.append(Entrypoint(name, cmd))
@@ -222,7 +222,7 @@ def get_entrypoints_for_py3():
         # each worker can handle an equal share of connections (fine when work
         # is extremely uniform)
         max_conns_per_worker = int(math.ceil(MAX_CONCURRENT_REQ / num_workers))
-        name = 'gunicorn-gevent%dw%dc' % (num_workers, max_conns_per_worker)
+        name = 'gunicorn-gevent%dw' % num_workers
         cmd = (gunicorn % (
             'gevent', num_workers)) + ' --worker-connections 80'
         entrypoints.append(Entrypoint(name, cmd))
