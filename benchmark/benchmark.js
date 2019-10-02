@@ -9,7 +9,10 @@ async function benchmark(projectName, service, version, testName,
     if (testName === 'json') {
         url = url.replace('/test/json', '/test/dbjson?b=1');
     }
-    if (testName.substring(0, 3) === 'ndb') {
+    if (testName === 'ndbtxtask') {
+        url = url.replace('/test/ndb', '/test/');
+    }
+    else if (testName.substring(0, 3) === 'ndb') {
         // same url path as db (test URL differs only in version, not path)
         url = url.replace('/test/ndb', '/test/db');
     }
