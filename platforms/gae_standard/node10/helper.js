@@ -167,7 +167,7 @@ exports.doDbIndir = async (n) => {
     const results = await Promise.all(promises);
     var ret = 0;
     results.forEach(v => { ret += v; });
-    return ret;
+    return ret.toString();
 };
 async function getAndThenGetDependency() {
     const [x] = await dbc.get(getRandomKey());
