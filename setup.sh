@@ -18,7 +18,7 @@ if [ -z $PROJECTNAME ]; then
     exit 1
 fi
 
-pip install --upgrade google-auth-oauthlib requests requests-futures
+pip install --upgrade google-auth-oauthlib requests
 gcloud components install beta
 gcloud components update
 
