@@ -37,6 +37,12 @@ def aggregate_file(fn):
         framework, part2 = ver.split('-', 1)
         platform = service + '-' + part2.rsplit('-', 1)[0]
         startup_stats[platform].append(int(startup_millis))
+        # compare ndb tests with the non-ndb version of the test (want to
+        # compare them head to head)
+        if test.startswith('ndb'):
+            test = test[1:]
+            if test == 'dbtxtask':
+                test = test[2:]
         core_id = Benchmark(service, ver, test)
         my_core_stats = core_stats[core_id]
         my_core_stats.setdefault('rps', []).append(float(req_per_sec))
