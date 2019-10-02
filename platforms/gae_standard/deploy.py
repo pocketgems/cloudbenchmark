@@ -208,9 +208,9 @@ def get_entrypoints_for_py3():
         if i:
             continue  # uvicorn cannot be told how many threads to use atm
         # ASGI ... under the hood, uses a threadpool for concurrency
-        name = 'gunicorn-uvicorn%dw' % num_workers
-        entrypoints.append(Entrypoint(name, gunicorn % (
-            'uvicorn.workers.UvicornWorker', num_workers)))
+        #name = 'gunicorn-uvicorn%dw' % num_workers
+        #entrypoints.append(Entrypoint(name, gunicorn % (
+        #    'uvicorn.workers.UvicornWorker', num_workers)))
         name = 'gunicorn-uv2-%dw' % num_workers
         entrypoints.append(Entrypoint(name, gunicorn % (
             'uvicorn.workers.UvicornWorker', num_workers)))
