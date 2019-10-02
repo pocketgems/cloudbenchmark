@@ -13,8 +13,9 @@ import requests
 
 INSTANCE_CLASSES = ('F1', 'F2', 'F4')
 MAX_CONCURRENT_REQ = 80  # also in template.ymal (GAE max is 80)
-TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask',
-         'dbindir', 'dbindirb', 'dbjson')
+TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbjson',
+         'dbtx', 'txtask', 'dbindir', 'dbindirb')
+PY3TESTS = tuple(list(TESTS) + ['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
 
 Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
 PendingDeployment = namedtuple('PendingDeployment', (
@@ -257,7 +258,7 @@ def queue_gae_standard_python3_deployments(deployer):
         else:
             frameworks = ('fastapi',)
         for framework in frameworks:
-            deployer.add_deploy('py37', framework, entrypoint, TESTS)
+            deployer.add_deploy('py37', framework, entrypoint, PY3TESTS)
 
 
 def queue_gae_standard_node10_deployments(deployer):

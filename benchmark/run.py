@@ -11,15 +11,13 @@ import time
 
 import requests
 
-ALL_TESTS = (
+TESTS = set([
     'noop', 'sleep', #'data',
     'memcache', 'dbtx', 'txtask',
     'dbindir', 'dbindirb', 'json'
-)
-ICLASSES = (
-    'f1',
-    'f2', 'f4'
-)
+])
+PY3TESTS = TESTS | set(['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
+ICLASSES = ('f1', 'f2', 'f4')
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'
     '/runBenchmark?project=%s&secs=%d&test=%s&service=%s&version=%s&c=%s')
@@ -65,7 +63,7 @@ def get_benchmarks(tests, limit_to_versions):
     """Returns a list of benchmarks to run."""
     greenlit = []
     service = 'py27'
-    for test in tests:
+    for test in tests & TESTS:
         for icls in ICLASSES:
             for framework in ('webapp',):
                 version = '%s-%s-solo-%s' % (framework, icls, test)
@@ -79,13 +77,13 @@ def get_benchmarks(tests, limit_to_versions):
         to_try.extend(['%s-%s' % (framework, x)
                        for x in PY3_ENTRY_TYPES_FOR_WSGI])
     to_try.extend(PY3_ENTRY_TYPES_FOR_ASGI)
-    for test in tests:
+    for test in tests & PY3TESTS:
         for framework_and_entrypoint in to_try:
             version = '%s-%s' % (framework_and_entrypoint, test)
             if not is_version_ignored(limit_to_versions, version):
                 greenlit.append(Benchmark(service, version, test))
     service = 'node10'
-    for test in tests:
+    for test in tests & TESTS:
         for framework in ('express', 'fastify',):
             version = '%s-f1-solo-%s' % (framework, test)
             if not is_version_ignored(limit_to_versions, version):
@@ -237,7 +235,7 @@ def main():
     parser.add_argument('--secs', type=int, help='how long to run test',
                         default=60)
     parser.add_argument('--test', action='append', dest='tests',
-                        choices=ALL_TESTS,
+                        choices=PY3TESTS,
                         help='which test to run (omit to run all tests)')
     args = parser.parse_args()
     limit_to_versions = [
@@ -245,7 +243,7 @@ def main():
     secs = args.secs
     assert args.secs > 0
     assert args.secs <= 290  # limited to 5min runtime on cloud functions
-    tests = tuple(args.tests or ALL_TESTS)
+    tests = set(args.tests or PY3TESTS)
     num_runs = args.n
     assert num_runs >= 1
 
