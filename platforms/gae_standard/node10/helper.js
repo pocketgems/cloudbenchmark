@@ -139,7 +139,7 @@ exports.doDbJson = async () => {
 
     const randomID = uuidv4();
     const key = dbc.key(['BigJsonHolder', randomID]);
-    const val = await deflate(JSON.stringify(bigJson)) //).toString('utf-8');
+    const val = await deflate(JSON.stringify(bigJson));
     await dbc.save({
         key: key,
         data: [{
