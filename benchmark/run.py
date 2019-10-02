@@ -11,9 +11,15 @@ import time
 
 import requests
 
-ALL_TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask', 'dbindir',
-             'dbindirb', 'dbjson')
-ICLASSES = ('f1', 'f2', 'f4')
+ALL_TESTS = (
+    #'noop', 'sleep', #'data',
+    #'memcache', 'dbtx', 'txtask',
+    'dbindir', 'dbindirb', 'dbjson'
+)
+ICLASSES = (
+    'f1',
+    #'f2', 'f4'
+)
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'
     '/runBenchmark?project=%s&secs=%d&test=%s&service=%s&version=%s&c=%s')
@@ -138,7 +144,7 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
     list_cmd = (cmd % 'list').split()
     delete_cmd = ((cmd % 'delete') + ' --quiet').split()
     one_request_benchmarker_url = BENCHMARKER_URL_FMT % (
-        project, project, 20, 'noop', service, version, 1) + '&n=1'
+        project, project, 60, 'noop', service, version, 1) + '&n=1'
     full_test_benchmarker_url = BENCHMARKER_URL_FMT % (
         project, project, secs, test, service, version, 88)
     context = 'service=%-6s version=%-36s test=%-7s    ' % (
@@ -171,7 +177,7 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
                 raise Exception('got HTTP %d error' % resp.status_code)
             x = resp.content.split('\t')
             if int(x[10]) or int(x[13]):
-                raise Exception('initial request failed: %s' + resp.content)
+                raise Exception('initial request failed: %s' % resp.content)
             startup_millis = x[6]
             my_log('started in %s', startup_millis)
 
