@@ -61,6 +61,7 @@ class DbTxAPI(webapp.RequestHandler):
 
 
 class Counter(ndb.Model):
+    _use_cache = _use_memcache = False
     count = ndb.IntegerProperty(default=0, indexed=False)
 
 
@@ -94,6 +95,9 @@ class LargeJsonDbAPI(webapp.RequestHandler):
             with open('big.json', 'r') as fin:
                 LargeJsonDbAPI.LARGE_JSON = ujson.loads(fin.read())
             raise Exception('read from file')  # don't include in benchmark
+        if self.request.get('b', 1):
+            ujson.loads(ujson.dumps(LargeJsonDbAPI.LARGE_JSON))
+            return 'did json only'
         random_id = uuid.uuid4().hex
         BigJsonHolder(
             id=random_id,
@@ -105,6 +109,7 @@ class LargeJsonDbAPI(webapp.RequestHandler):
 
 
 class BigJsonHolder(ndb.Model):
+    _use_cache = _use_memcache = False
     data = ndb.BlobProperty()
 
 
@@ -122,16 +127,12 @@ class IndirDbRequestAPI(webapp.RequestHandler):
         """Gets a random OneInt. Then gets another OneInt whose key is
         double (modded to fit in the range).
         """
-        x = yield self._get_random_key().get_async()
+        x = yield _get_random_key().get_async()
         if not x:
             raise Exception('OneInt entity missing (not yet defined?)')
         new_idx = (2 * x.key.id()) % 10000
         subx = yield ndb.Key(OneInt, new_idx).get_async()
         raise ndb.Return(subx.key.id() + x.key.id())
-
-    @staticmethod
-    def _get_random_key():
-        return ndb.Key(OneInt, random.randint(0, 9999))
 
     # initialize the datastore entities
     def post(self):
@@ -152,7 +153,7 @@ class IndirBatchDbRequestAPI(webapp.RequestHandler):
     """
     def get(self):
         n = int(self.request.get('n', 3))
-        keys = [self._get_random_key() for ignore in xrange(n)]
+        keys = [_get_random_key() for ignore in xrange(n)]
         entities = ndb.get_multi(keys)
         if None in entities:
             raise Exception('OneInt entity missing (not yet defined?)')
@@ -161,13 +162,13 @@ class IndirBatchDbRequestAPI(webapp.RequestHandler):
         entities.extend(ndb.get_multi(new_keys))
         self.response.out.write(str(sum(x.key.id() for x in entities)))
 
-    @staticmethod
-    def _get_random_key():
-        return ndb.Key(OneInt, random.randint(0, 9999))
+
+def _get_random_key():
+    return ndb.Key(OneInt, random.randint(0, 9999))
 
 
 class OneInt(ndb.Model):
-    pass
+    _use_cache = _use_memcache = False
 
 
 routes = [
