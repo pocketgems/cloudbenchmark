@@ -48,7 +48,7 @@ fastify.get('/test/txtask', async (req, reply) => {
 });
 
 fastify.get('/test/dbjson', async (req, reply) => {
-    reply.send(await helper.doDbJson());
+    reply.send(await helper.doDbJson(!!req.query.b));
 });
 
 fastify.get('/test/dbindir', async (req, reply) => {

@@ -49,7 +49,7 @@ app.get('/test/txtask', asyncHandler(async (req, res, next) => {
 }));
 
 app.get('/test/dbjson', asyncHandler(async (req, res, next) => {
-    res.send(await helper.doDbJson());
+    res.send(await helper.doDbJson(!!req.query.b));
 }));
 
 app.get('/test/dbindir', asyncHandler(async (req, res, next) => {

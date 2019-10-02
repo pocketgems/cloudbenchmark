@@ -35,8 +35,7 @@ def aggregate_file(fn):
         utc_str, service, ver, test, req_per_sec, kBps, lmin, l50 = columns[:8]
         l90, l99, non2xx, secs, pct_err, conn_err, startup_millis = columns[8:]
         framework, part2 = ver.split('-', 1)
-        assert part2.endswith('-' + test)
-        platform = service + '-' + part2[:-1 - len(test)]
+        platform = service + '-' + part2.rsplit('-', 1)[0]
         startup_stats[platform].append(int(startup_millis))
         core_id = Benchmark(service, ver, test)
         my_core_stats = core_stats[core_id]

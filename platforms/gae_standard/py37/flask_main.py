@@ -114,7 +114,7 @@ def handle_tx_task():
 
 @app.route('/test/dbjson')
 def DbJsonAPI():
-    return str(do_db_json())
+    return str(do_db_json(bool(request.args.get('b', False))))
 
 
 @app.route('/test/dbindir')

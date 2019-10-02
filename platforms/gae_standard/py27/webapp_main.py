@@ -95,9 +95,10 @@ class LargeJsonDbAPI(webapp.RequestHandler):
             with open('big.json', 'r') as fin:
                 LargeJsonDbAPI.LARGE_JSON = ujson.loads(fin.read())
             raise Exception('read from file')  # don't include in benchmark
-        if self.request.get('b', 1):
+        if self.request.get('b', False):
             ujson.loads(ujson.dumps(LargeJsonDbAPI.LARGE_JSON))
-            return 'did json only'
+            self.response.out.write('did json only')
+            return
         random_id = uuid.uuid4().hex
         BigJsonHolder(
             id=random_id,

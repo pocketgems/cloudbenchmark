@@ -145,8 +145,8 @@ def TxTaskAPI(n: int = 5):
 
 
 @API.get('/test/dbjson')
-def DbTxAPI():
-    return Response(content=str(do_db_json()), media_type='text/plain')
+def DbTxAPI(b: bool = False):
+    return Response(content=str(do_db_json(b)), media_type='text/plain')
 
 
 @app.get('/test/dbindir')

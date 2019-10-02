@@ -75,7 +75,7 @@ class TxTaskAPI(object):
 @api('/test/dbjson')
 class DbJsonAPI(object):
     def on_get(self, req, resp):
-        do_db_json()
+        resp.body = str(do_db_json(bool(req.get_param('b', default=False))))
 
 
 @api('/test/dbindir')

@@ -59,6 +59,16 @@ def is_version_ignored(limit_to_versions, version):
     return True
 
 
+def tt(test):
+    """Transform test name to name used in the version.
+
+    dbjson and json share a version. Don't run them at the same time.
+    """
+    if test == 'json':
+        return 'dbjson'
+    return test
+
+
 def get_benchmarks(tests, limit_to_versions):
     """Returns a list of benchmarks to run."""
     greenlit = []
@@ -66,7 +76,7 @@ def get_benchmarks(tests, limit_to_versions):
     for test in tests & TESTS:
         for icls in ICLASSES:
             for framework in ('webapp',):
-                version = '%s-%s-solo-%s' % (framework, icls, test)
+                version = '%s-%s-solo-%s' % (framework, icls, tt(test))
                 if not is_version_ignored(limit_to_versions, version):
                     greenlit.append(Benchmark(service, version, test))
     service = 'py37'
@@ -79,13 +89,13 @@ def get_benchmarks(tests, limit_to_versions):
     to_try.extend(PY3_ENTRY_TYPES_FOR_ASGI)
     for test in tests & PY3TESTS:
         for framework_and_entrypoint in to_try:
-            version = '%s-%s' % (framework_and_entrypoint, test)
+            version = '%s-%s' % (framework_and_entrypoint, tt(test))
             if not is_version_ignored(limit_to_versions, version):
                 greenlit.append(Benchmark(service, version, test))
     service = 'node10'
     for test in tests & TESTS:
         for framework in ('express', 'fastify',):
-            version = '%s-f1-solo-%s' % (framework, test)
+            version = '%s-f1-solo-%s' % (framework, tt(test))
             if not is_version_ignored(limit_to_versions, version):
                 greenlit.append(Benchmark(service, version, test))
     return greenlit
@@ -149,7 +159,7 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
         project, project, secs, test, service, version,
         # dbjson is a memory (and cpu) hog, so we can max it out and not blow
         # up memory by limiting connections
-        88 if test != 'dbjson' else 10)
+        88 if 'json' not in test else 2)
     context = 'service=%-6s version=%-36s test=%-7s    ' % (
         service, version, test)
     pad_sz = max(0, 76 - len(context))
@@ -186,15 +196,15 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
 
             # dbjson test requires a special request to first load the JSON
             # data from disk
-            if test == 'dbjson':
+            if 'json' in test:
                 dbjson_url = one_request_benchmarker_url.replace(
                     '/test/noop', '/test/dbjson')
                 requests.get(dbjson_url)  # ignore response
                 resp = requests.get(dbjson_url)
                 if resp.status_code != 200:
                     raise Exception(
-                        'got HTTP %d error while preparing dbjson' % (
-                            resp.status_code))
+                        'got HTTP %d error while preparing %s' % (
+                            resp.status_code, test))
 
             # run the benchmark
             resp = requests.get(full_test_benchmarker_url)

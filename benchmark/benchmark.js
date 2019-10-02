@@ -6,11 +6,13 @@ async function benchmark(projectName, service, version, testName,
                          isSummaryDesired) {
     var url = ['https://', version, '-dot-', service, '-dot-', projectName,
                '.appspot.com/test/' + testName].join('');
+    if (testName === 'json') {
+        url = url.replace('/test/json', '/test/dbjson?b=1');
+    }
     if (testName.substring(0, 3) === 'ndb') {
         // same url path as db (test URL differs only in version, not path)
         url = url.replace('/test/ndb', '/test/db');
     }
-    console.log(url);
     var out = await autocannon({
         amount: numRequests,
         connections: numConnections,

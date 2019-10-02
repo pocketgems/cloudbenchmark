@@ -130,11 +130,15 @@ async function incrDbEntry(tx, someID) {
 }
 
 var bigJson = undefined;
-exports.doDbJson = async () => {
+exports.doDbJson = async (jsonOnly) => {
     if (!bigJson) {
         const fs = require('fs');
         bigJson = JSON.parse(fs.readFileSync('big.json', 'utf8'));
         throw new Error('read from file');  // don't include in benchmark
+    }
+    if (jsonOnly) {
+        JSON.parse(JSON.stringify(bigJson));
+        return 'did json only';
     }
 
     const randomID = uuidv4();
