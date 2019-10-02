@@ -8,13 +8,21 @@ set -o nounset
 if [ $# -ge 1 ]; then
     PROJECTNAME=$1
 else
-    rndint=$((RANDOM % 1000000))
-    echo "What do you want to name your project? e.g., benchmarkgcp$rndint"
+    rndint=$((RANDOM % 100000))
+    echo "What do you want to name your project? e.g., bmarkgcp$rndint"
     read PROJECTNAME
 fi
 PROJECTNAME="$(echo -e "${PROJECTNAME}" | tr -d '[:space:]')"
 if [ -z $PROJECTNAME ]; then
     echo "project name is required"
+    exit 1
+fi
+pnamesz=${#PROJECTNAME}
+if [ $pnamesz -gt 13 ]; then
+    # if it is too long, then some of the targeted urls' hostnames will be
+    # longer than allowed on GAE (<version>-dot-<service>-dot-<project> must
+    # be less than 64 characters)
+    echo "project name cannot be longer than 13 characters"
     exit 1
 fi
 
