@@ -3,4 +3,5 @@
 .gitignore
 deploy.sh
 node_modules
-run.py
+*.py
+*.tsv
