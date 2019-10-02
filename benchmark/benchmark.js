@@ -2,11 +2,13 @@
 const autocannon = require('autocannon');
 
 async function benchmark(projectName, service, version, testName,
-                         numConnections, durationSecs, isSummaryDesired) {
+                         numConnections, durationSecs, numRequests,
+                         isSummaryDesired) {
     var url = ['https://', version, '-dot-', service, '-dot-', projectName,
                '.appspot.com/test/' + testName].join('');
     console.log(url);
     var out = await autocannon({
+        amount: numRequests,
         connections: numConnections,
         duration: durationSecs,
         excludeErrorStats: true,
@@ -45,12 +47,13 @@ function summarize(result) {
 };
 
 // can run the tests locally (but better to use
-async function main(projectName, service, version, testName, duration) {
+async function main(projectName, service, version, testName, duration,
+                    numRequests) {
     if (!projectName || !service || !version || !testName || !duration) {
         throw 'missing required command-line arg(s)';
     }
     var out = await benchmark(projectName, service, version,
-                              testName, 64, duration);
+                              testName, 64, duration, numRequests);
     console.log(service, version, out.requests.mean, out.latency.p50);
 
     // display results in a tabular format which can be copied/pasted into a
