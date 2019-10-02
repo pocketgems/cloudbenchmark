@@ -256,7 +256,7 @@ def main():
         if not os.path.exists(args.results_fn):
             open(args.results_fn, 'w').write('')
         try:
-            results = open(args.results_fn, 'r').read()
+            results = open(args.results_fn, 'r').read().split('\n')
         except:  # pylint: disable=bare-except
             print 'no results yet'
             results = []
@@ -264,7 +264,7 @@ def main():
             if not line:
                 continue
             pieces = line.split('\t')
-            uid = Benchmark(pieces[1:4])
+            uid = Benchmark(*pieces[1:4])
             completed_count[uid] += 1
     num_left = dict((benchmark, max(0, num_runs - completed_count[benchmark]))
                     for benchmark in benchmarks)
