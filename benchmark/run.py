@@ -181,6 +181,18 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
             startup_millis = x[6]
             my_log('started in %s', startup_millis)
 
+            # dbjson test requires a special request to first load the JSON
+            # data from disk
+            if test == 'dbjson':
+                dbjson_url = one_request_benchmarker_url.replace(
+                    '/test/noop', '/test/dbjson')
+                requests.get(dbjson_url)  # ignore response
+                resp = requests.get(dbjson_url)
+                if resp.status_code != 200:
+                    raise Exception(
+                        'got HTTP %d error while preparing dbjson' % (
+                            resp.status_code))
+
             # run the benchmark
             resp = requests.get(full_test_benchmarker_url)
             if resp.status_code != 200:
