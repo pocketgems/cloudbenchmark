@@ -63,9 +63,17 @@ def aggregate_file(fn):
         headers.append('%s-avg' % key)
         headers.append('%s-sd' % key)
     headers.append('# Samples')
+    ignore = set()
     for benchmark, stats in core_stats.items():
+        if len(stats['rps']) < 2:
+            print('warning: only %d data points for %s %s %s' % (
+                len(req_per_sec), *benchmark))
+            ignore.add(benchmark)
+            continue
         for k in keys:
             stats[k] = compute_stats(stats[k])
+    for benchmark in ignore:
+        del core_stats[benchmark]
     print('\t'.join(headers))
     for benchmark, stats in sorted(core_stats.items(), key=cmp_core):
         values = [benchmark.test, benchmark.service, benchmark.version]
