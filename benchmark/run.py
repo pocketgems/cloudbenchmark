@@ -73,7 +73,9 @@ def get_benchmarks(tests, limit_to_versions):
                     greenlit.append(Benchmark(service, version, test))
     service = 'py37'
     to_try = []
-    for framework in ('falcon', 'flask'):
+    for framework in ('falcon',
+                      #'flask',
+    ):
         to_try.extend(['%s-%s' % (framework, x)
                        for x in PY3_ENTRY_TYPES_FOR_WSGI])
     to_try.extend(PY3_ENTRY_TYPES_FOR_ASGI)

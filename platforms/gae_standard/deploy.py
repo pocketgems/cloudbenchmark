@@ -252,7 +252,7 @@ def queue_gae_standard_python3_deployments(deployer):
         if 'uv' not in entrypoint.name:
             frameworks = (
                 'falcon',
-                'flask',
+                #'flask',
             )
         else:
             frameworks = ('fastapi',)
