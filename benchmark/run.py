@@ -12,13 +12,13 @@ import time
 import requests
 
 ALL_TESTS = (
-    #'noop', 'sleep', #'data',
-    #'memcache', 'dbtx', 'txtask',
-    'dbindir', 'dbindirb', 'dbjson'
+    'noop', 'sleep', #'data',
+    'memcache', 'dbtx', 'txtask',
+    'dbindir', 'dbindirb', 'json'
 )
 ICLASSES = (
     'f1',
-    #'f2', 'f4'
+    'f2', 'f4'
 )
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'
@@ -47,7 +47,7 @@ PY3_ENTRY_TYPES_FOR_WSGI = (
 )
 PY3_ENTRY_TYPES_FOR_ASGI = (
     'fastapi-gunicorn-uvicorn1w',
-    # 'fastapi-gunicorn-uv2-1w',
+    'fastapi-gunicorn-uv2-1w',
 )
 
 

@@ -249,7 +249,7 @@ def queue_gae_standard_python3_deployments(deployer):
 
     # deploy a service for each desired entrypoint X framework X test combo
     for entrypoint in get_entrypoints_for_py3():
-        if 'uvicorn' not in entrypoint.name:
+        if 'uv' not in entrypoint.name:
             frameworks = (
                 'falcon',
                 'flask',
