@@ -146,7 +146,10 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
     one_request_benchmarker_url = BENCHMARKER_URL_FMT % (
         project, project, 60, 'noop', service, version, 1) + '&n=1'
     full_test_benchmarker_url = BENCHMARKER_URL_FMT % (
-        project, project, secs, test, service, version, 88)
+        project, project, secs, test, service, version,
+        # dbjson is a memory (and cpu) hog, so we can max it out and not blow
+        # up memory by limiting connections
+        88 if test != 'dbjson' else 10)
     context = 'service=%-6s version=%-36s test=%-7s    ' % (
         service, version, test)
     pad_sz = max(0, 76 - len(context))
