@@ -9,7 +9,7 @@ import uuid
 import zlib
 
 from google.cloud import datastore as db
-import ujson
+import orjson
 
 
 dbc = db.Client()
@@ -77,19 +77,19 @@ def do_db_json(json_only=False):
     global LARGE_JSON
     if not LARGE_JSON:
         with open('big.json', 'rb') as fin:
-            LARGE_JSON = ujson.loads(fin.read())
+            LARGE_JSON = orjson.loads(fin.read())
         raise Exception('read from file')  # don't include in benchmark
     if json_only:
-        ujson.loads(ujson.dumps(LARGE_JSON))
+        orjson.loads(orjson.dumps(LARGE_JSON))
         return 'did json only'
     random_id = uuid.uuid4().hex
     key = dbc.key('BigJsonHolder', random_id)
     x = db.Entity(key=key, exclude_from_indexes=('data',))
-    x['data'] = zlib.compress(ujson.dumps(LARGE_JSON).encode('utf-8'))
+    x['data'] = zlib.compress(orjson.dumps(LARGE_JSON))
     dbc.put(x)
     x = dbc.get(key)
     data = zlib.decompress(x['data'])
-    ujson.loads(data)
+    orjson.loads(data)
     return len(data)
 
 

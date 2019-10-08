@@ -4,8 +4,6 @@ import os
 import random
 import zlib
 
-import ujson
-
 
 APP_ID = os.environ.get('GAE_APPLICATION', '').replace('s~', '')
 # if running uwsgi+gevent (ONLY) then we need to monkeypatch because it doesn't
