@@ -67,10 +67,14 @@ else:
 
 
 import base64
+import platform
 import uuid
 
 from google.cloud import tasks_v2
 import redis
+
+log(logging.CRITICAL, 'APP_ID=%s VER=%s python runtime = %s',
+    APP_ID, os.environ.get('GAE_VERSION'), platform.python_implementation())
 
 if 'REDIS_HOST' in os.environ:
     rcache = redis.Redis(host=os.environ['REDIS_HOST'],
@@ -78,8 +82,11 @@ if 'REDIS_HOST' in os.environ:
 else:
     log(logging.WARN, 'missing redis creds')
     rcache = None
-taskq = tasks_v2.CloudTasksClient.from_service_account_json(
-    'cloudtasksaccount.json')
+if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+    taskq = tasks_v2.CloudTasksClient()
+else:
+    taskq = tasks_v2.CloudTasksClient.from_service_account_json(
+        'cloudtasksaccount.json')
 
 
 def do_memcache(n, sz):
