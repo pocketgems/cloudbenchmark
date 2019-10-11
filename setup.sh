@@ -95,6 +95,57 @@ gcloud tasks queues create test \
      --max-concurrent-dispatches=0 \
      --max-attempts=0
 
+
+### setup for GKE
+# create service account for our GKE clusters to use to access datastore, task
+# queue, redis and stackdriver
+gcloud iam service-accounts create forcloudrun
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --role "roles/cloudtasks.enqueuer"
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --role "roles/datastore.user"
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --role "roles/redis.editor"
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --role "roles/logging.logWriter"
+gcloud iam service-accounts keys create \
+    platforms/cloud_run/serviceaccount.json \
+    --iam-account forcloudrun@$PROJECTNAME.iam.gserviceaccount.com
+# enable GKE
+gcloud components install kubectl --quiet
+gcloud services enable container.googleapis.com
+#gcloud services enable cloudbuild.googleapis.com
+# put our clusters in the same region and zone as our benchmarker
+machineTypes=['c2-standard-4', 'n1-highcpu-2', 'n2-highcpu-2', 'custom-2-1024']
+for start in `seq 1 1`; do
+    machineType=${machineTypes[$start]}
+    if [ $machineType == 'c2-standard-4' ]; then
+        zone='us-central1-b'  # not available in zone a yet
+    else
+        zone='us-central1-a'
+    fi
+    gcloud container clusters create test-$machineType \
+           --machine-type=$machineType \
+           --metadata disable-legacy-endpoints=true \
+           --enable-ip-alias \
+           --no-issue-client-certificate \
+           --no-enable-basic-auth \
+           --default-max-pods-per-node 8 \
+           --enable-autorepair \
+           --enable-autoupgrade \
+           --enable-stackdriver-kubernetes \
+           --enable-autoscaling \
+           --min-nodes=0 \
+           --max-nodes=1 \
+           --num-nodes=1 \
+           --zone=$zone \
+           --service-account=forcloudrun@benchmarkgcp2.iam.gserviceaccount.com
+done
+
 ./platforms/gae_standard/deploy.py $PROJECTNAME
 pushd benchmark
 ./deploy.sh
