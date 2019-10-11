@@ -10,5 +10,4 @@ time docker build -t ${runtime}slim:0.2 -f Dockerfile.${runtime} ../.. &&
   PORT=8080 && docker run \
    -p 8080:${PORT} \
    -e PORT=${PORT} \
-   -v `pwd`/../serviceaccount.json:/tmp/gcpkeys.json:ro \
    ${runtime}slim:0.2
