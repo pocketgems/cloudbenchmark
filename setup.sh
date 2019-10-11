@@ -81,7 +81,9 @@ gcloud services enable tasks.googleapis.com
 gcloud iam service-accounts create testcloudtasks
 gcloud projects add-iam-policy-binding $PROJECTNAME \
     --member "serviceAccount:testcloudtasks@$PROJECTNAME.iam.gserviceaccount.com" \
-    --role "roles/cloudtasks.admin" \
+    --role "roles/cloudtasks.admin"
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member "serviceAccount:testcloudtasks@$PROJECTNAME.iam.gserviceaccount.com" \
     --role "roles/appengine.appViewer"
 gcloud iam service-accounts keys create \
     platforms/gae_standard/py37/cloudtasksaccount.json \
