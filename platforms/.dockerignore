@@ -1,6 +1,7 @@
-Dockerfile
+Dockerfile*
 README.md
 *.pyc
 *.pyo
 *.pyd
+*.tsv
 __pycache__

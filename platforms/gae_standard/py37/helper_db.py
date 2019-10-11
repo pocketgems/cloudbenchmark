@@ -1,15 +1,23 @@
-from helper import APP_ID, taskq
+from helper import APP_ID, log, taskq
 
 from aioify import aioify
 import asyncio
 import base64
+import json
+import logging
 import os
 import random
 import uuid
 import zlib
 
 from google.cloud import datastore as db
-import orjson
+try:
+    import orjson as json
+    IS_ORJSON = True
+except ModuleNotFoundError:
+    import json
+    log(logging.INFO, 'using std lib json (not orjson)')
+    IS_ORJSON = False
 
 
 dbc = db.Client()
@@ -77,19 +85,22 @@ def do_db_json(json_only=False):
     global LARGE_JSON
     if not LARGE_JSON:
         with open('big.json', 'rb') as fin:
-            LARGE_JSON = orjson.loads(fin.read())
+            LARGE_JSON = json.loads(fin.read())
         raise Exception('read from file')  # don't include in benchmark
+    dump = json.dumps(LARGE_JSON)
+    if not IS_ORJSON:
+        dump = dump.encode('utf-8')
     if json_only:
-        orjson.loads(orjson.dumps(LARGE_JSON))
+        json.loads(dump)
         return 'did json only'
     random_id = uuid.uuid4().hex
     key = dbc.key('BigJsonHolder', random_id)
     x = db.Entity(key=key, exclude_from_indexes=('data',))
-    x['data'] = zlib.compress(orjson.dumps(LARGE_JSON))
+    x['data'] = zlib.compress(dump)
     dbc.put(x)
     x = dbc.get(key)
     data = zlib.decompress(x['data'])
-    orjson.loads(data)
+    json.loads(data)
     return len(data)
 
 
