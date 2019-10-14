@@ -120,7 +120,7 @@ gcloud components install kubectl --quiet
 gcloud services enable container.googleapis.com
 #gcloud services enable cloudbuild.googleapis.com
 # put our clusters in the same region and zone as our benchmarker
-machineTypes=['c2-standard-4', 'n1-highcpu-2', 'n2-highcpu-2', 'custom-2-1024']
+machineTypes=('c2-standard-4' 'n1-highcpu-2' 'n2-highcpu-2' 'custom-2-1024')
 for start in `seq 1 1`; do
     machineType=${machineTypes[$start]}
     if [ $machineType == 'c2-standard-4' ]; then
@@ -128,23 +128,31 @@ for start in `seq 1 1`; do
     else
         zone='us-central1-a'
     fi
-    gcloud container clusters create test-$machineType \
+    clusterName=test-$machineType
+    gcloud beta container clusters create $clusterName \
            --machine-type=$machineType \
+           --addons=HorizontalPodAutoscaling,HttpLoadBalancing,Istio,CloudRun \
+           --scopes cloud-platform \
            --metadata disable-legacy-endpoints=true \
            --enable-ip-alias \
            --no-issue-client-certificate \
            --no-enable-basic-auth \
-           --default-max-pods-per-node 8 \
            --enable-autorepair \
            --enable-autoupgrade \
            --enable-stackdriver-kubernetes \
+           --zone=$zone \
            --enable-autoscaling \
            --min-nodes=0 \
-           --max-nodes=1 \
+           --max-nodes=2 \
            --num-nodes=1 \
-           --zone=$zone \
            --service-account=forcloudrun@benchmarkgcp2.iam.gserviceaccount.com
+    # get the public IP address through which we can access our service
+    kubectl get service istio-ingressgateway --namespace istio-system \
+            --cluster gke_${PROJECTID}_${zone}_test-${machineType} \
+            --output='jsonpath={.status.loadBalancer.ingress[0].ip}' \
+            > platforms/cloud_run/clusterip_${machineType}.txt
 done
+
 
 ./platforms/gae_standard/deploy.py $PROJECTNAME
 pushd benchmark
