@@ -13,4 +13,4 @@ COPY gae_standard/py37/flask_main.py .
 COPY gae_standard/py37/helper.py .
 COPY gae_standard/py37/helper_db.py .
 COPY gae_standard/py37/helper_ndb.py .
-CMD exec gunicorn --worker-class gevent --workers 2 --bind :$PORT falcon_main:app --error-logfile=- --access-logfile=- --log-level debug
+CMD exec gunicorn --worker-class gevent --workers 2 --bind :$PORT falcon_main:app --error-logfile=- --log-level warning

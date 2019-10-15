@@ -1,0 +1,7 @@
+steps:
+- name: 'gcr.io/kaniko-project/executor:latest'
+  args: ["--destination=gcr.io/benchmarkgcp2/testpy3kaniko",
+         "--cache=true",
+         "--cache-ttl=336h",
+         "--verbosity=debug"]
+timeout: 900s
