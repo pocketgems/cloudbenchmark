@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "autocannon": "^4.1.1",
+    "autocannon": "dound/autocannon#fix/duplicate-host-header",
     "express": "^4.16.4"
   },
   "devDependencies": {
