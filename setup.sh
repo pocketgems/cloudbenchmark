@@ -112,6 +112,9 @@ gcloud projects add-iam-policy-binding $PROJECTNAME \
 gcloud projects add-iam-policy-binding $PROJECTNAME \
     --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
     --role "roles/logging.logWriter"
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --role "roles/monitoring.metricWriter"
 # need to be able to access builds in order to deploy them
 gsutil iam ch serviceAccount:forcloudrun@${PROJECTNAME}.iam.gserviceaccount.com:objectViewer gs://artifacts.${PROJECTNAME}.appspot.com
 gcloud iam service-accounts keys create \
