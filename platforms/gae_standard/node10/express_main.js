@@ -10,7 +10,7 @@ app.get('/_ah/warmup', (req, res) => {
 });
 
 app.get('/test/log', (req, res) => {
-    console.log('hello world');
+    console.log(`hello world ${process.pid}`);
     res.end();
 });
 
@@ -62,7 +62,30 @@ app.get('/test/dbindirb', asyncHandler(async (req, res, next) => {
     res.send(await helper.doDbIndirb(n));
 }));
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}...`);
-});
+function startApp() {
+    const PORT = process.env.PORT || 8080;
+    app.listen(PORT, () => {
+        console.log(`worker PID ${process.pid} listening on port ${PORT} ...`);
+    });
+}
+const NUM_CORES = +process.env.NUM_CORES || 1;
+if (NUM_CORES > 1) {
+    const cluster = require('cluster');
+    if(cluster.isMaster) {
+        for(let i = 0; i < NUM_CORES; i++) {
+            cluster.fork();
+        }
+        cluster.on('exit', function(worker, code, signal) {
+            console.error(['worker PID ', worker.process.pid,
+                           ' died (code=', code, ' signal=', signal,
+                           ' (starting new worker)'].join(''));
+            cluster.fork();
+        });
+    }
+    else {
+        startApp();
+    }
+}
+else {
+    startApp();
+}
