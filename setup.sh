@@ -123,7 +123,10 @@ gcloud iam service-accounts keys create \
 # enable GKE
 gcloud components install kubectl --quiet
 gcloud services enable container.googleapis.com
-#gcloud services enable cloudbuild.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable logging.googleapis.com
+gcloud services enable monitoring.googleapis.com
+gcloud services enable stackdriver.googleapis.com
 # put our clusters in the same region and zone as our benchmarker
 machineTypes=('c2-standard-4' 'n1-highcpu-2' 'n2-highcpu-2' 'custom-2-1024')
 for start in `seq 1 1`; do
