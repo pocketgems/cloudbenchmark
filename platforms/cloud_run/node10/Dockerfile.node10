@@ -1,0 +1,24 @@
+FROM node:10.16.3 AS build-env
+WORKDIR /app
+COPY gae_standard/node10/package.json \
+     gae_standard/node10/yarn.lock \
+     ./
+RUN yarn install
+
+
+FROM gcr.io/distroless/nodejs
+COPY --from=build-env /app /app
+WORKDIR /app
+
+COPY cloud_run/serviceaccount.json /tmp/gcpkeys.json
+ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/gcpkeys.json
+ENV REDIS_HOST 10.0.0.4
+ENV REDIS_PORT 6379
+ENV NUM_CORES 2
+
+COPY gae_standard/py27/big.json \
+     gae_standard/node10/express_main.js \
+     gae_standard/node10/helper.js \
+     ./
+
+CMD ["express_main.js"]
