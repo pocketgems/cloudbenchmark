@@ -159,6 +159,8 @@ for start in `seq 1 1`; do
             --cluster gke_${PROJECTID}_${zone}_test-${machineType} \
             --output='jsonpath={.status.loadBalancer.ingress[0].ip}' \
             > platforms/cloud_run/clusterip_${machineType}.txt
+    # don't need this (default) addon
+    gcloud container clusters update $clusterName --update-addons=KubernetesDashboard=DISABLED
 done
 
 
