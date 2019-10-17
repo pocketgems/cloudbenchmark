@@ -22,7 +22,62 @@ PendingDeployment = namedtuple('PendingDeployment', (
     'framework', 'version', 'service', 'cfg', 'deploy_cmd', 'post_deploy'))
 
 
-class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
+class AbstractRuntime(namedtuple('AbstractRuntime', (
+        'name', 'path', 'cfg', 'deployments'))):
+    def add_deploy(self, project_name, framework, entrypoint, tests, post):
+        raise NotImplementedError
+
+    @staticmethod
+    def is_version_ignored(limit_to_versions, version):
+        if limit_to_versions is None:
+            return False
+        for regex in limit_to_versions:
+            if regex.search(version):
+                return False
+        return True
+
+    def deploy_all(self, count, limit_to_versions):
+        os.chdir(self.path)
+        deploy_time_log_fn = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            'deploy_log.tsv')
+        with open(deploy_time_log_fn, 'a') as fout_deploy_log:
+            for pd in self.deployments:
+                if self.is_version_ignored(limit_to_versions, pd.version):
+                    continue
+                self._pre_deploy(pd)
+                start = time.time()
+                subprocess.check_call(pd.deploy_cmd)
+                end = time.time()
+                print >> fout_deploy_log, '%s\t%f\t%s' % (
+                    pd.service, end - start, pd.version)
+                if pd.post_deploy:
+                    pd.post_deploy(pd.service, pd.version)
+                count += 1
+                print 'deployment #%d completed' % count
+        return count
+
+    def print_stats(self, limit_to_versions):
+        all_services = set([])
+        all_service_version_pairs = set([])
+        ignored_pairs = set([])
+        for pd in self.deployments:
+            all_services.add(pd.service)
+            sv = '-'.join([pd.service, pd.version])
+            all_service_version_pairs.add(sv)
+            if self.is_version_ignored(limit_to_versions, pd.version):
+                ignored_pairs.add(sv)
+        print 'GAE %s - %d service(s) and %d service-version pair(s)%s' % (
+            self.name, len(all_services), len(all_service_version_pairs),
+            (' (%d ignored)' % len(ignored_pairs)) if ignored_pairs else '')
+        return all_services, all_service_version_pairs, ignored_pairs
+
+    def _pre_deploy(self, pd):
+        """Called to setup files for deployment."""
+        raise NotImplementedError
+
+
+class GAERuntime(AbstractRuntime):
     def add_deploy(self, project_name, framework, entrypoint, tests, post):
         is_default = (entrypoint.name == 'default')
         service = self.name
@@ -54,50 +109,9 @@ class Runtime(namedtuple('Runtime', ('name', 'path', 'cfg', 'deployments'))):
             self.deployments.append(PendingDeployment(
                 framework, version, service, cfg, cmd, post))
 
-    def is_version_ignored(self, limit_to_versions, version):
-        if limit_to_versions is None:
-            return False
-        for regex in limit_to_versions:
-            if regex.search(version):
-                return False
-        return True
-
-    def deploy_all(self, count, limit_to_versions):
-        os.chdir(self.path)
-        deploy_time_log_fn = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            'deploy_log.tsv')
-        with open(deploy_time_log_fn, 'a') as fout_deploy_log:
-            for pd in self.deployments:
-                if self.is_version_ignored(limit_to_versions, pd.version):
-                    continue
-                self.__use_framework(self.name, self.path, pd.framework)
-                open('app.yaml', 'w').write(pd.cfg)
-                start = time.time()
-                subprocess.check_call(pd.deploy_cmd)
-                end = time.time()
-                print >> fout_deploy_log, '%s\t%f\t%s' % (
-                    pd.service, end - start, pd.version)
-                if pd.post_deploy:
-                    pd.post_deploy(pd.service, pd.version)
-                count += 1
-                print 'deployment #%d completed' % count
-        return count
-
-    def print_stats(self, limit_to_versions):
-        all_services = set([])
-        all_service_version_pairs = set([])
-        ignored_pairs = set([])
-        for pd in self.deployments:
-            all_services.add(pd.service)
-            sv = '-'.join([pd.service, pd.version])
-            all_service_version_pairs.add(sv)
-            if self.is_version_ignored(limit_to_versions, pd.version):
-                ignored_pairs.add(sv)
-        print 'GAE %s - %d service(s) and %d service-version pair(s)%s' % (
-            self.name, len(all_services), len(all_service_version_pairs),
-            (' (%d ignored)' % len(ignored_pairs)) if ignored_pairs else '')
-        return all_services, all_service_version_pairs, ignored_pairs
+    def _pre_deploy(self, pd):
+        self.__use_framework(self.name, self.path, pd.framework)
+        open('app.yaml', 'w').write(pd.cfg)
 
     @staticmethod
     def __use_framework(runtime, runtime_dir, framework):
@@ -119,7 +133,9 @@ class GAEStandardDeployer(object):
         for runtime in self.runtimes:
             if runtime.name == runtime_name:
                 return runtime  # already added
-        root_dir = os.path.abspath(os.path.dirname(__file__))
+        root_dir = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            'gae_standard')
         runtime_dir = os.path.join(root_dir, runtime_name)
         for cfg_name in ('template-generated', 'template', 'app'):
             runtime_cfg_template_path = os.path.join(
@@ -127,7 +143,7 @@ class GAEStandardDeployer(object):
             if os.path.exists(runtime_cfg_template_path):
                 break
         template_cfg = open(runtime_cfg_template_path, 'r').read()
-        runtime = Runtime(runtime_name, runtime_dir, template_cfg, [])
+        runtime = GAERuntime(runtime_name, runtime_dir, template_cfg, [])
         self.runtimes.append(runtime)
         return runtime
 
@@ -316,7 +332,7 @@ def main():
     queue_gae_standard_python3_deployments(deployer)
     queue_gae_standard_node10_deployments(deployer)
     deployer.print_stats()
-    deployer.deploy_all()
+    #deployer.deploy_all()
 
 
 if __name__ == '__main__':
