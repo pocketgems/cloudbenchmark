@@ -82,13 +82,17 @@ def get_benchmarks(tests, limit_to_versions):
     service = 'py37'
     to_try = []
     for framework in ('falcon',
-                      #'flask',
+                      'flask',
     ):
         to_try.extend(['%s-%s' % (framework, x)
-                       for x in PY3_ENTRY_TYPES_FOR_WSGI])
+                       for x in PY3_ENTRY_TYPES_FOR_WSGI
+                       # no uwsgi tests for flask
+                       if 'uwsgi' not in x or framework != 'flask'])
     to_try.extend(PY3_ENTRY_TYPES_FOR_ASGI)
     for test in tests & PY3TESTS:
         for framework_and_entrypoint in to_try:
+            if 'flask' in framework_and_entrypoint and test  not in TESTS:
+                continue  # only standard tests for flask
             version = '%s-%s' % (framework_and_entrypoint, tt(test))
             if not is_version_ignored(limit_to_versions, version):
                 greenlit.append(Benchmark(service, version, test))

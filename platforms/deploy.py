@@ -269,12 +269,18 @@ def queue_gae_standard_python3_deployments(deployer):
         if 'uv' not in entrypoint.name:
             frameworks = (
                 'falcon',
-                #'flask',
+                'flask',
             )
         else:
             frameworks = ('fastapi',)
         for framework in frameworks:
-            deployer.add_deploy('py37', framework, entrypoint, PY3TESTS)
+            # need to limit tests a bit so we don't have too many versions
+            tests = PY3TESTS
+            if framework == 'flask':
+                tests = TESTS  # no ndb tests for flask
+                if 'uwsgi' in entrypoint.name:
+                    continue  # no uwsgi tests for flask
+            deployer.add_deploy('py37', framework, entrypoint, tests)
 
 
 def queue_gae_standard_node10_deployments(deployer):
