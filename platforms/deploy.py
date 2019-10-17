@@ -127,7 +127,7 @@ class GAEStandardDeployer(object):
         self.project_name = project_name
         # we will deploy the runtimes in the order they are added
         self.runtimes = []
-        self.limit_to_versions = frozenset(limit_to_versions)
+        self.limit_to_versions = limit_to_versions
 
     def __get_runtime(self, runtime_name):
         for runtime in self.runtimes:
@@ -319,8 +319,8 @@ def main():
         sys.exit(1)
     if ':' in sys.argv[-1]:
         project_name, limit_to_versions = sys.argv[-1].split(':')
-        limit_to_versions = [re.compile(x)
-                             for x in limit_to_versions.split(',')]
+        limit_to_versions = frozenset(
+            [re.compile(x) for x in limit_to_versions.split(',')])
     else:
         project_name = sys.argv[-1]
         limit_to_versions = None
