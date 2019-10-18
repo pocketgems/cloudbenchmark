@@ -144,7 +144,7 @@ class CloudRunDeployer(AbstractDeployer):
         for group in self.groups:
             if group.machine_type == 'managed':
                 # memorystore is not supported (yet) on CR Managed
-                my_tests = tests - frozenset(['memcache'])
+                my_tests = [x for x in tests if x != 'memcache']
             else:
                 my_tests = tests
             group.add_image(self.project_name, my_tests, image_cfg)
