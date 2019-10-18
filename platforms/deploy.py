@@ -172,9 +172,8 @@ class CloudRunDeployer(AbstractDeployer):
             lines = lines[:-1]  # will insert our own custom start command
         template_dockerfile = '\n'.join(lines)
         redis_info = open('cloud_run/.redis_info', 'r').read()
-        dockerfile = '\n'.join([template_dockerfile,
-                                redis_info,
-                                'CMD ' + image_cfg.start_cmd, ''])
+        cmd = image_cfg.start_cmd
+        dockerfile = '\n'.join([template_dockerfile, redis_info, cmd, ''])
         with open('Dockerfile', 'w') as fout:
             fout.write(dockerfile)
         # create the cloud build config file for this image
@@ -196,13 +195,15 @@ class CloudRunDeployer(AbstractDeployer):
         Total Services = 8 * 9 = 72 per machine type
         """
         images = [
-            CloudRunImageConfig('node10', 'express', 'express_main.js'),
-            CloudRunImageConfig('node10', 'fastify', 'fastify_main.js'),
+            CloudRunImageConfig(
+                'node10', 'express', 'CMD ["express_main.js"]'),
+            CloudRunImageConfig(
+                'node10', 'fastify', 'CMD ["fastify_main.js"]'),
         ]
 
         py_servers = dict(
             gunicorn=dict(
-                cmd=('exec gunicorn --worker-class %s --workers 2 '
+                cmd=('CMD exec gunicorn --worker-class %s --workers 2 '
                      '--bind :$PORT falcon_main:app --error-logfile=- '
                      '--log-level warning'),
                 workers=[
@@ -212,8 +213,9 @@ class CloudRunDeployer(AbstractDeployer):
                 ],
             ),
             uwsgi=dict(
-                cmd=('uwsgi --http-socket :$PORT --wsgi-file falcon_main.py '
-                     '--callable app --disable-logging --%s 40'),
+                cmd=('CMD exec uwsgi --http-socket :$PORT --wsgi-file '
+                     'falcon_main.py  --callable app --disable-logging '
+                     '--%s 40'),
                 workers=[
                     'gevent'
                 ],
