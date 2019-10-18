@@ -10,3 +10,4 @@ google-cloud-logging
 uwsgi
 falcon
 uvicorn==0.9
+aioify

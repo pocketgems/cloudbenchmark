@@ -1,7 +1,7 @@
 FROM python:3.7
 COPY cloud_run/requirements.txt /requirements.txt
-RUN pip install --no-binary :all: --no-cache-dir -r /requirements.txt
-RUN pip install --no-cache-dir aioify fastapi orjson
+RUN pip install --no-cache-dir -r /requirements.txt
+RUN pip install --no-cache-dir orjson
 ENV GAE_VERSION gevent
 COPY cloud_run/serviceaccount.json /tmp/gcpkeys.json
 ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/gcpkeys.json
