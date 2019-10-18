@@ -12,8 +12,6 @@ WORKDIR /app
 
 COPY cloud_run/serviceaccount.json /tmp/gcpkeys.json
 ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/gcpkeys.json
-ENV REDIS_HOST 10.0.0.4
-ENV REDIS_PORT 6379
 ENV NUM_CORES 2
 
 COPY gae_standard/py27/big.json \
