@@ -142,7 +142,12 @@ class CloudRunDeployer(AbstractDeployer):
             assert x.name != image_cfg.name
         self.container_images.add(image_cfg)
         for group in self.groups:
-            group.add_image(self.project_name, tests, image_cfg)
+            if group.machine_type == 'managed':
+                # memorystore is not supported (yet) on CR Managed
+                my_tests = tests - frozenset(['memcache'])
+            else:
+                my_tests = tests
+            group.add_image(self.project_name, my_tests, image_cfg)
 
     def deploy_all(self):
         images = sorted(self.container_images)
