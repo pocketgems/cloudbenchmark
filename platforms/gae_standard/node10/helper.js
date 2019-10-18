@@ -10,7 +10,10 @@ const {Datastore} = require('@google-cloud/datastore');
 const dbc = new Datastore();
 
 const {CloudTasksClient} = require('@google-cloud/tasks');
-const taskq = new CloudTasksClient({keyFilename: 'cloudtasksaccount.json'});
+const taskqcfg = process.env.GOOGLE_APPLICATION_CREDENTIALS ? undefined : {
+    keyFilename: 'cloudtasksaccount.json'
+};
+const taskq = new CloudTasksClient(taskqcfg);
 
 const rcache = (process.env.REDIS_HOST ? require('async-redis').createClient({
     host: process.env.REDIS_HOST,
