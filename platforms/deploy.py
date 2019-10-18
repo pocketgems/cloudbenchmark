@@ -161,8 +161,7 @@ class CloudRunDeployer(AbstractDeployer):
         assert len(all_deployment_uids) / len(all_categories) <= 150, (
             "can't have more than 150 services per cluster")
 
-    @staticmethod
-    def build_image(image_cfg):
+    def build_image(self, image_cfg):
         os.chdir(PLATFORMS_DIR)
         # create the Dockerfile for this image
         template_dockerfile_fn = 'cloud_run/Dockerfile.%s' % image_cfg.runtime
@@ -171,9 +170,13 @@ class CloudRunDeployer(AbstractDeployer):
         if lines[-1].startswith('CMD '):
             lines = lines[:-1]  # will insert our own custom start command
         template_dockerfile = '\n'.join(lines)
-        redis_info = open('cloud_run/.redis_info', 'r').read()
-        cmd = image_cfg.start_cmd
-        dockerfile = '\n'.join([template_dockerfile, redis_info, cmd, ''])
+        env_lines = [
+            'ENV GAE_APPLICATION %s' % self.project_name,
+            open('cloud_run/.redis_info', 'r').read(),
+        ]
+        dockerfile = '\n'.join([template_dockerfile,
+                                '\n'.join(env_lines),
+                                image_cfg.start_cmd, ''])
         with open('Dockerfile', 'w') as fout:
             fout.write(dockerfile)
         # create the cloud build config file for this image
