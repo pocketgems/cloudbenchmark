@@ -1,2 +1,4 @@
+.redis_info
+cloudbuild.yaml
 deploy_log.tsv
 Dockerfile

@@ -74,6 +74,8 @@ echo "  name: $vpcname" >> $py37cfgFN
 echo "env_variables:" >> $py37cfgFN
 echo "  REDIS_HOST: \"$redishost\"" >> $py37cfgFN
 echo "  REDIS_PORT: \"$redisport\"" >> $py37cfgFN
+echo "ENV REDIS_HOST $redishost" > ./platforms/cloud_run/.redis_info
+echo "ENV REDIS_PORT $redisport" >> ./platforms/cloud_run/.redis_info
 
 echo "setting up Cloud Tasks ..."
 gcloud services enable cloudtasks.googleapis.com
@@ -139,7 +141,7 @@ for start in `seq 1 1`; do
     else
         zone='us-central1-a'
     fi
-    clusterName=test-$machineType
+    clusterName=cluster-$machineType
     gcloud beta container clusters create $clusterName \
            --machine-type=$machineType \
            --addons=HorizontalPodAutoscaling,HttpLoadBalancing,Istio,CloudRun \
@@ -154,17 +156,22 @@ for start in `seq 1 1`; do
            --zone=$zone \
            --enable-autoscaling \
            --min-nodes=0 \
-           --max-nodes=2 \
-           --num-nodes=1 \
+           --max-nodes=100 \
+           --num-nodes=3 \
            --service-account=forcloudrun@benchmarkgcp2.iam.gserviceaccount.com
     # get the public IP address through which we can access our service
     kubectl get service istio-ingressgateway --namespace istio-system \
-            --cluster gke_${PROJECTID}_${zone}_test-${machineType} \
+            --cluster gke_${PROJECTNAME}_${zone}_${clusterName} \
             --output='jsonpath={.status.loadBalancer.ingress[0].ip}' \
             > platforms/cloud_run/clusterip_${machineType}.txt
     # don't need this (default) addon
     gcloud container clusters update $clusterName --update-addons=KubernetesDashboard=DISABLED
 done
+
+# cloud run
+gcloud services enable run.googleapis.com
+# alpha required to be able to update cloud run service yamls
+gcloud components install alpha --quiet
 
 
 ./platforms/gae_standard/deploy.py $PROJECTNAME

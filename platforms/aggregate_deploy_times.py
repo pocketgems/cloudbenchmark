@@ -21,7 +21,7 @@ def aggregate_file(fn):
     for line in lines:
         if not line:
             continue
-        service, secs, version = line.split('\t')
+        service, secs = line.split('\t')[:2]
         secs = float(secs)
         stats[service].append(secs)
     output = {}
@@ -31,7 +31,7 @@ def aggregate_file(fn):
                            min(secs_arr),
                            len(secs_arr))
     print('\t'.join([
-        'Service', 'Avg Deploy Secs', 'StDev', 'Min', '# Samples']))
+        'Deploy Category', 'Avg Deploy Secs', 'StDev', 'Min', '# Samples']))
     for service, (avg, sdev, minv, n) in sorted(output.items(),
                                                 key=lambda item: item[1][0]):
         print ('%s\t%.1f\t%.1f\t%.1f\t%d' % (service, avg, sdev, minv, n))

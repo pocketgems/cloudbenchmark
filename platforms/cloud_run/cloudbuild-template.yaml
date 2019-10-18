@@ -1,6 +1,6 @@
 steps:
 - name: 'gcr.io/kaniko-project/executor:latest'
-  args: ["--destination=gcr.io/benchmarkgcp2/testpy3kaniko",
+  args: ["--destination=gcr.io/benchmarkgcp2/IMAGENAME",
          "--cache=true",
          "--cache-ttl=336h",
          "--verbosity=debug"]

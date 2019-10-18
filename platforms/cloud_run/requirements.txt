@@ -1,4 +1,3 @@
-Flask==1.0.2
 gunicorn==19.9.0
 gevent==1.4.0
 google-cloud-datastore
@@ -11,8 +10,3 @@ google-cloud-logging
 uwsgi
 falcon
 uvicorn==0.9
-
-# these aren't compiling from source
-#aioify
-#orjson
-#fastapi
