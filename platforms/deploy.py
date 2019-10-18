@@ -232,7 +232,9 @@ class CloudRunDeployer(AbstractDeployer):
                     worker_type = worker_info.split(' ', 1)[0].split('.', 1)[0]
                     name = '%s-%s' % (server_type, worker_type)
                     cmd = cfg['cmd'] % worker_info
-                    images.append(CloudRunImageConfig(runtime, name, cmd))
+                    if runtime != 'pypy3' or server_type != 'uwsgi':
+                        # uwsgi + pypy3 setup not working w/o major setup work
+                        images.append(CloudRunImageConfig(runtime, name, cmd))
 
         for image in images:
             self.add_image(TESTS, image)
