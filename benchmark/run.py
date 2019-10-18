@@ -17,6 +17,8 @@ TESTS = set([
     'dbindir', 'dbindirb', 'dbjson'
 ])
 PY3TESTS = TESTS | set(['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
+CLOUD_RUN_MACHINE_TYPES = ('managed',
+                           'n1-highcpu-2', 'n2-highcpu-2', 'c2-standard-4')
 ICLASSES = ('f1', 'f2', 'f4')
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'
@@ -24,6 +26,7 @@ BENCHMARKER_URL_FMT = (
 
 PendingRequest = namedtuple('PendingRequest', ('url', 'future'))
 Benchmark = namedtuple('Benchmark', ('service', 'version', 'test'))
+CloudRunBenchmark = namedtuple('Benchmark', ('service', 'base_url', 'test'))
 DEVNULL = open(os.devnull, 'w')
 FILE_LOCK = threading.Lock()
 PRINT_LOCK = threading.Lock()
@@ -69,9 +72,52 @@ def tt(test):
     return test
 
 
+CR_URLS = None
+
+def get_managed_cloud_run_url(service):
+    """Returns the URL for accessing a managed Cloud Run service."""
+    global CR_URLS  # pylint: disable=global-statement
+    if not CR_URLS:
+        out = {}
+        ret = subprocess.check_output([
+            'gcloud', 'beta', 'run', 'services', 'list',
+            '--platform', 'managed',
+            '--format', 'csv(metadata.name,status.address.url)'])
+        for line in ret.split('\n')[1:]:
+            service_id, url = line.split(',')
+            if url:
+                out[service_id] = url
+        CR_URLS = out
+    return CR_URLS[service]
+
+
 def get_benchmarks(tests, limit_to_versions):
     """Returns a list of benchmarks to run."""
     greenlit = []
+    for machine_type in CLOUD_RUN_MACHINE_TYPES:
+        if machine_type != 'maanged':
+            ip_fn = 'platforms/cloud_run/clusterip_%s.txt' % machine_type
+            cluster_ip = open(ip_fn, 'r').read().strip()
+        for test in tests & TESTS:
+            for runtime in ('node10', 'py3', 'pypy3'):
+                if runtime == 'node10':
+                    kinds = ['express', 'fastify']
+                else:
+                    kinds = [
+                        'gunicorn-gevent',
+                        'gunicorn-gthread',
+                        'gunicorn-uvicorn',
+                    ]
+                    if runtime != 'pypy3':
+                        kinds.append('uwsgi-gevent')
+                for kind in kinds:
+                    service = '%s-%s-%s-%s' % (machine_type, runtime, kind, test)
+                    if machine_type == 'managed':
+                        base_url = get_managed_cloud_run_url(service)
+                    else:
+                        base_url = 'http://' + cluster_ip
+                    CloudRunBenchmark(service, base_url, test)
+    # GAE
     service = 'py27'
     for test in tests & TESTS:
         for icls in ICLASSES:
@@ -81,9 +127,7 @@ def get_benchmarks(tests, limit_to_versions):
                     greenlit.append(Benchmark(service, version, test))
     service = 'py37'
     to_try = []
-    for framework in ('falcon',
-                      'flask',
-    ):
+    for framework in ('falcon', 'flask'):
         to_try.extend(['%s-%s' % (framework, x)
                        for x in PY3_ENTRY_TYPES_FOR_WSGI
                        # no uwsgi tests for flask
@@ -114,9 +158,7 @@ def run_benchmarks(results_fn, project, secs, left_by_benchmark):
     global KILL_FLAG  # pylint: disable=global-statement
     threads = [
         threading.Thread(target=run_benchmark, kwargs=dict(
-            service=benchmark.service,
-            version=benchmark.version,
-            test=benchmark.test,
+            benchmark=benchmark,
             secs=secs,
             project=project,
             num_left=num_left,
@@ -151,12 +193,13 @@ def run_benchmarks(results_fn, project, secs, left_by_benchmark):
                 log('\nShutting down: %d threads left ...', prev_num_left)
 
 
-def run_benchmark(service, version, test, secs, project, num_left, results_fn):
+def run_benchmark(benchmark, secs, project, num_left, results_fn):
     """Runs a single benchmark the specified number of times."""
-    cmd = 'gcloud app instances %%s --service %s --version %s' % (
-        service, version)
-    list_cmd = (cmd % 'list').split()
-    delete_cmd = ((cmd % 'delete') + ' --quiet').split()
+    service = benchmark.service
+    test = benchmark.test
+    version = getattr(benchmark, 'version', '')  # only present for GAE bmarks
+    is_gae = bool(version)
+
     one_request_benchmarker_url = BENCHMARKER_URL_FMT % (
         project, project, 60, 'noop', service, version, 1) + '&n=1'
     full_test_benchmarker_url = BENCHMARKER_URL_FMT % (
@@ -164,6 +207,21 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
         # dbjson is a memory (and cpu) hog, so we can max it out and not blow
         # up memory by limiting connections
         88 if 'json' not in test else 2)
+
+    if is_gae:
+        cmd = 'gcloud app instances %%s --service %s --version %s' % (
+            service, version)
+        list_cmd = (cmd % 'list').split()
+        delete_cmd = ((cmd % 'delete') + ' --quiet').split()
+    else:
+        base_url = benchmark.base_url
+        scheme, hostname = base_url.split('://', 1)
+        extra_qs = '&hostname=' + hostname
+        if scheme == 'http':
+            extra_qs += '&nossl=1'
+        one_request_benchmarker_url += extra_qs
+        full_test_benchmarker_url += extra_qs
+
     context = 'service=%-6s version=%-36s test=%-7s    ' % (
         service, version, test)
     pad_sz = max(0, 76 - len(context))
@@ -172,18 +230,19 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
     my_log = lambda s, *args: log(context + s, *args)
     while num_left > 0 and not KILL_FLAG:
         try:
-            # shut down the current instance, if any
-            my_log('listing instances')
-            out = subprocess.check_output(list_cmd, stderr=DEVNULL)
-            if out:
-                rows = out.split('\n')
-                iid_idx = rows[0].split().index('ID')
-                iid = rows[1].split()[iid_idx]
-                my_log('shutting down %s', iid)
-                with SHUTDOWN_LOCK:
-                    subprocess.check_call(delete_cmd + [iid],
-                                          stderr=DEVNULL, stdout=DEVNULL)
-                my_log('shuttdown down %s', iid)
+            if is_gae:
+                # shut down the current instance, if any
+                my_log('listing instances')
+                out = subprocess.check_output(list_cmd, stderr=DEVNULL)
+                if out:
+                    rows = out.split('\n')
+                    iid_idx = rows[0].split().index('ID')
+                    iid = rows[1].split()[iid_idx]
+                    my_log('shutting down %s', iid)
+                    with SHUTDOWN_LOCK:
+                        subprocess.check_call(delete_cmd + [iid],
+                                              stderr=DEVNULL, stdout=DEVNULL)
+                    my_log('shuttdown down %s', iid)
 
             # measure time for a single request to be served (startup latency)
             # note: this request is for the no-op url (not measuring processing
@@ -196,7 +255,10 @@ def run_benchmark(service, version, test, secs, project, num_left, results_fn):
             if int(x[10]) or int(x[13]):
                 raise Exception('initial request failed: %s' % resp.content)
             startup_millis = x[6]
-            my_log('started in %s', startup_millis)
+            if is_gae or startup_millis > 10000:
+                my_log('started in %s', startup_millis)
+            else:
+                startup_millis = -1  # CR service was probably already started
 
             # dbjson test requires a special request to first load the JSON
             # data from disk
