@@ -1,26 +1,43 @@
 #!/usr/bin/env node
 const autocannon = require('autocannon');
 
-async function benchmark(projectName, service, version, testName,
-                         numConnections, durationSecs, numRequests,
+async function benchmark(projectName, noSSL, hostname, service, version,
+                         testName, numConnections, durationSecs, numRequests,
                          isSummaryDesired) {
-    var url = ['https://', version, '-dot-', service, '-dot-', projectName,
-               '.appspot.com/test/' + testName].join('');
-    if (testName === 'json') {
-        url = url.replace('/test/json', '/test/dbjson?b=1');
+    const scheme = noSSL ? 'http://' : 'https://';
+    var headers;
+    if (!hostname) {
+        // GAE targeted hostname
+        hostname = [version, '-dot-', service, '-dot-', projectName,
+                    '.appspot.com'].join('');
     }
-    if (testName === 'ndbtxtask') {
-        url = url.replace('/test/ndb', '/test/');
+    else {
+        headers = {
+            'host': service + '.default.example.com';
+        };
+    }
+    var path;
+    if (testName === 'json') {
+        path = '/test/dbjson?b=1';
+    }
+    else if (testName === 'ndbtxtask') {
+        path = '/test/txtask';
     }
     else if (testName.substring(0, 3) === 'ndb') {
         // same url path as db (test URL differs only in version, not path)
-        url = url.replace('/test/ndb', '/test/db');
+        path = '/test/db' + testName.substring(3);
     }
+    else {
+        path = '/test/' + testName;
+    }
+    const url = [scheme, hostname, path].join('');
+    console.log('url=', url);
     var out = await autocannon({
         amount: numRequests,
         connections: numConnections,
         duration: durationSecs,
         excludeErrorStats: true,
+        headers: headers,
         pipelining: 1,
         url: url
     });
@@ -55,13 +72,14 @@ function summarize(result) {
     ].join('\t');
 };
 
-// can run the tests locally (but better to use
+// can run the tests locally (but better to run it from the datacenter where
+// the app is located to isolate the benchmark from public internet noise)
 async function main(projectName, service, version, testName, duration,
                     numRequests) {
     if (!projectName || !service || !version || !testName || !duration) {
         throw 'missing required command-line arg(s)';
     }
-    var out = await benchmark(projectName, service, version,
+    var out = await benchmark(projectName, false, undefined,, service, version,
                               testName, 64, duration, numRequests);
     console.log(service, version, out.requests.mean, out.latency.p50);
 
