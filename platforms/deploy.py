@@ -174,6 +174,8 @@ class CloudRunDeployer(AbstractDeployer):
             'ENV GAE_APPLICATION %s' % self.project_name,
             open('cloud_run/.redis_info', 'r').read(),
         ]
+        if 'gevent' in image_cfg.start_cmd:
+            env_lines.append('ENV GAE_VERSION gevent')
         dockerfile = '\n'.join([template_dockerfile,
                                 '\n'.join(env_lines),
                                 image_cfg.start_cmd, ''])
