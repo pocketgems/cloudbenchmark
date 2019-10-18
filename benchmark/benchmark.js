@@ -15,6 +15,7 @@ async function benchmark(projectName, noSSL, hostname, service, version,
         headers = {
             'host': service + '.default.example.com';
         };
+        version = '';  // not relevant when hostname is provided
     }
     var path;
     if (testName === 'json') {
