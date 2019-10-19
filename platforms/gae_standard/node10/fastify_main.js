@@ -61,13 +61,14 @@ fastify.get('/test/dbindirb', async (req, reply) => {
     reply.send(await helper.doDbIndirb(n));
 });
 
-const start = async () => {
-  try {
-      await fastify.listen(process.env.PORT || 8080);
-      fastify.log.info(`server listening on ${fastify.server.address().port}`)
-  } catch (err) {
-      fastify.log.error(err);
-      process.exit(1);
-  }
-}
-start();
+require('./clusterize').startApp((PORT) => {
+    fastify.listen(PORT, '0.0.0.0', (err, addr) => {
+        if (err) {
+            console.error(`worker PID ${process.pid} error: ${err}`);
+            process.exit(1);
+        }
+        else {
+            console.log(`worker PID ${process.pid} listening on ${addr} ...`);
+        }
+    });
+});
