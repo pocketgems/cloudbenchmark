@@ -314,6 +314,8 @@ def main():
                         help='file to save results & pick up from if resuming')
     parser.add_argument('--secs', type=int, help='how long to run test',
                         default=60)
+    parser.add_argument('--dry-run', action='store_true',
+                        help='if passed, benchmarks will be printed, not run')
     parser.add_argument('--test', action='append', dest='tests',
                         choices=PY3TESTS,
                         help='which test to run (omit to run all tests)')
@@ -331,6 +333,10 @@ def main():
     benchmarks = get_benchmarks(tests, limit_to_versions)
     print '%d benchmarks to run (%d times each)' % (
         len(benchmarks), num_runs)
+    if args.dry_run:
+        for x in benchmarks:
+            print x
+        return
     time.sleep(3)
 
     # figure out how many runs if each test is needed
