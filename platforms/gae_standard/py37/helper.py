@@ -60,6 +60,8 @@ if APP_ID:  # running in the dev server
             severity = 'CRITICAL'
         else:
             raise RuntimeError('unknown severity for log: %s' % msg)
+        if severity == 'WARN':
+            severity = 'WARNING'
         logger.log_struct({'message': msg}, resource=res, severity=severity)
 else:
     def log(severity, msg, *args):
