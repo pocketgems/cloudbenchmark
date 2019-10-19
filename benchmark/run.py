@@ -84,6 +84,8 @@ def get_managed_cloud_run_url(service):
             '--platform', 'managed',
             '--format', 'csv(metadata.name,status.address.url)'])
         for line in ret.split('\n')[1:]:
+            if not line:
+                continue
             service_id, url = line.split(',')
             if url:
                 out[service_id] = url
