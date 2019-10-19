@@ -13,6 +13,7 @@ WORKDIR /app
 COPY cloud_run/serviceaccount.json /tmp/gcpkeys.json
 ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/gcpkeys.json
 ENV NUM_CORES 2
+ENV NODE_ENV production
 
 COPY gae_standard/py27/big.json \
      gae_standard/node10/express_main.js \
