@@ -11,3 +11,4 @@ uwsgi
 falcon
 uvicorn==0.9
 aioify
+fastapi
