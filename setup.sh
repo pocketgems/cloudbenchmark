@@ -142,6 +142,7 @@ for start in `seq 1 1`; do
         zone='us-central1-a'
     fi
     clusterName=cluster-$machineType
+    # Istio addon no longer required as of 1.13.10-gke.8+
     gcloud beta container clusters create $clusterName \
            --machine-type=$machineType \
            --addons=HorizontalPodAutoscaling,HttpLoadBalancing,Istio,CloudRun \
