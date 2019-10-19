@@ -13,7 +13,7 @@ async function benchmark(projectName, noSSL, hostname, service, version,
     }
     else {
         headers = {
-            'host': service + '.default.example.com';
+            'host': service + '.default.example.com'
         };
         version = '';  // not relevant when hostname is provided
     }
@@ -80,7 +80,7 @@ async function main(projectName, service, version, testName, duration,
     if (!projectName || !service || !version || !testName || !duration) {
         throw 'missing required command-line arg(s)';
     }
-    var out = await benchmark(projectName, false, undefined,, service, version,
+    var out = await benchmark(projectName, false, undefined, service, version,
                               testName, 64, duration, numRequests);
     console.log(service, version, out.requests.mean, out.latency.p50);
 
