@@ -12,10 +12,13 @@ async function benchmark(projectName, noSSL, hostname, service, version,
                     '.appspot.com'].join('');
     }
     else {
-        headers = {
-            'host': service + '.default.example.com'
-        };
-        version = '';  // not relevant when hostname is provided
+        version = 'n/a';  // not relevant when hostname is provided
+        if (service.indexOf('managed') !== 0) {
+            console.log(service, service.indexOf('managed'));
+            headers = {
+                'host': service + '.default.example.com'
+            };
+        }
     }
     var path;
     if (testName === 'json') {
@@ -32,7 +35,7 @@ async function benchmark(projectName, noSSL, hostname, service, version,
         path = '/test/' + testName;
     }
     const url = [scheme, hostname, path].join('');
-    console.log('url=', url);
+    console.log(`url=${url} headers=${headers}`);
     var out = await autocannon({
         amount: numRequests,
         connections: numConnections,
