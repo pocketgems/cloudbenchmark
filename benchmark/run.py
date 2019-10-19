@@ -120,7 +120,7 @@ def get_benchmarks(tests, limit_to_versions):
                         base_url = get_managed_cloud_run_url(service)
                     else:
                         base_url = 'http://' + cluster_ip
-                    CloudRunBenchmark(service, base_url, test)
+                    greenlit.append(CloudRunBenchmark(service, base_url, test))
     # GAE
     service = 'py27'
     for test in tests & TESTS:
