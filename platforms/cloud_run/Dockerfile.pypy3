@@ -6,6 +6,7 @@ ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/gcpkeys.json
 WORKDIR /app
 COPY gae_standard/py27/big.json \
      gae_standard/py37/falcon_main.py \
+     gae_standard/py37/fastapi_main.py \
      gae_standard/py37/helper.py \
      gae_standard/py37/helper_db.py \
      gae_standard/py37/helper_ndb.py \
