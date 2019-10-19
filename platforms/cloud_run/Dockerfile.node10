@@ -18,6 +18,7 @@ COPY gae_standard/py27/big.json \
      gae_standard/node10/express_main.js \
      gae_standard/node10/fastify_main.js \
      gae_standard/node10/helper.js \
+     gae_standard/node10/clusterize.js \
      ./
 
 CMD ["express_main.js"]
