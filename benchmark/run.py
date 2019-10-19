@@ -26,7 +26,8 @@ BENCHMARKER_URL_FMT = (
 
 PendingRequest = namedtuple('PendingRequest', ('url', 'future'))
 Benchmark = namedtuple('Benchmark', ('service', 'version', 'test'))
-CloudRunBenchmark = namedtuple('Benchmark', ('service', 'base_url', 'test'))
+CloudRunBenchmark = namedtuple('CloudRunBenchmark', (
+    'service', 'base_url', 'test'))
 DEVNULL = open(os.devnull, 'w')
 FILE_LOCK = threading.Lock()
 PRINT_LOCK = threading.Lock()
@@ -120,7 +121,9 @@ def get_benchmarks(tests, limit_to_versions):
                         base_url = get_managed_cloud_run_url(service)
                     else:
                         base_url = 'http://' + cluster_ip
-                    greenlit.append(CloudRunBenchmark(service, base_url, test))
+                    if not is_version_ignored(limit_to_versions, service):
+                        greenlit.append(CloudRunBenchmark(
+                            service, base_url, test))
     # GAE
     service = 'py27'
     for test in tests & TESTS:
