@@ -130,7 +130,8 @@ def get_benchmarks(tests, limit_to_versions):
         for icls in ICLASSES:
             for framework in ('webapp',):
                 version = '%s-%s-solo-%s' % (framework, icls, tt(test))
-                if not is_version_ignored(limit_to_versions, version):
+                if not is_version_ignored(limit_to_versions,
+                                          service + '-' + version):
                     greenlit.append(Benchmark(service, version, test))
     service = 'py37'
     to_try = []
@@ -145,7 +146,8 @@ def get_benchmarks(tests, limit_to_versions):
             if 'flask' in framework_and_entrypoint and test  not in TESTS:
                 continue  # only standard tests for flask
             version = '%s-%s' % (framework_and_entrypoint, tt(test))
-            if not is_version_ignored(limit_to_versions, version):
+            if not is_version_ignored(limit_to_versions,
+                                      service + '-' + version):
                 greenlit.append(Benchmark(service, version, test))
     for test in tests & TESTS:
         for framework in ('express', 'fastify',):
@@ -155,7 +157,8 @@ def get_benchmarks(tests, limit_to_versions):
                 services = ['node10']
             for service in services:
                 version = '%s-f1-solo-%s' % (framework, tt(test))
-                if not is_version_ignored(limit_to_versions, version):
+                if not is_version_ignored(limit_to_versions,
+                                          service + '-' + version):
                     greenlit.append(Benchmark(service, version, test))
     return greenlit
 
