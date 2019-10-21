@@ -99,9 +99,12 @@ gcloud projects add-iam-policy-binding $PROJECTNAME \
 gcloud iam service-accounts keys create \
     platforms/gae_standard/py37/cloudtasksaccount.json \
     --iam-account testcloudtasks@$PROJECTNAME.iam.gserviceaccount.com
+# routing override is specified because app_engine_routing seems to be broken
+# and ignored when used from managed cloud run (works fine from GAE though)
 gcloud tasks queues create testpy3 \
      --max-concurrent-dispatches=0 \
-     --max-attempts=0
+     --max-attempts=0 \
+      --routing-override='service:py3,version:txtaskhandler'
 gcloud tasks queues create test \
      --max-concurrent-dispatches=0 \
      --max-attempts=0
