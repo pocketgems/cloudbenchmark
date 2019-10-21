@@ -87,7 +87,10 @@ def do_db_json(json_only=False):
     if not LARGE_JSON:
         with open('big.json', 'rb') as fin:
             LARGE_JSON = json.loads(fin.read())
-        raise Exception('read from file')  # don't include in benchmark
+        if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', ''):
+            # don't include in benchmark (but this stops cloud run from
+            # launching the instance so don't do this on cloud run)
+            raise Exception('read from file')
     dump = json.dumps(LARGE_JSON)
     if not IS_ORJSON:
         dump = dump.encode('utf-8')
