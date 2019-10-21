@@ -272,10 +272,7 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn):
             if int(x[10]) or int(x[13]):
                 raise Exception('initial request failed: %s' % resp.content)
             startup_millis = x[6]
-            if is_gae or startup_millis > 10000:
-                my_log('started in %s', startup_millis)
-            else:
-                startup_millis = -1  # CR service was probably already started
+            my_log('started in %s', startup_millis)
 
             # dbjson test requires a special request to first load the JSON
             # data from disk
