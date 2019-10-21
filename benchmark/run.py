@@ -147,12 +147,16 @@ def get_benchmarks(tests, limit_to_versions):
             version = '%s-%s' % (framework_and_entrypoint, tt(test))
             if not is_version_ignored(limit_to_versions, version):
                 greenlit.append(Benchmark(service, version, test))
-    service = 'node10'
     for test in tests & TESTS:
         for framework in ('express', 'fastify',):
-            version = '%s-f1-solo-%s' % (framework, tt(test))
-            if not is_version_ignored(limit_to_versions, version):
-                greenlit.append(Benchmark(service, version, test))
+            if framework == 'fastify':
+                services = ['node10', 'node12']
+            else:
+                services = ['node10']
+            for service in services:
+                version = '%s-f1-solo-%s' % (framework, tt(test))
+                if not is_version_ignored(limit_to_versions, version):
+                    greenlit.append(Benchmark(service, version, test))
     return greenlit
 
 

@@ -64,16 +64,25 @@ gcloud services enable vpcaccess.googleapis.com
 gcloud beta compute networks vpc-access connectors create conntest \
     --network default --region us-central1 --range 10.8.0.0/28
 
+# second gen runtimes need to be connected to the VPC where redis is running
+# and told how to connect to it
 vpcname="$(gcloud beta compute networks vpc-access connectors describe \
                   conntest --region us-central1 \
                     | fgrep name | cut -d: -f2 | cut -d' ' -f2)"
-py37cfgFN=./platforms/gae_standard/py37/template-generated.yaml
-cp ./platforms/gae_standard/py37/template.yaml $py37cfgFN
-echo "vpc_access_connector:" >> $py37cfgFN
-echo "  name: $vpcname" >> $py37cfgFN
-echo "env_variables:" >> $py37cfgFN
-echo "  REDIS_HOST: \"$redishost\"" >> $py37cfgFN
-echo "  REDIS_PORT: \"$redisport\"" >> $py37cfgFN
+generatedYamlFN=./tmp-generated.yaml
+echo "vpc_access_connector:" > $generatedYamlFN
+echo "  name: $vpcname" >> $generatedYamlFN
+echo "env_variables:" >> $generatedYamlFN
+echo "  REDIS_HOST: \"$redishost\"" >> $generatedYamlFN
+echo "  REDIS_PORT: \"$redisport\"" >> $generatedYamlFN
+secondGenRuntimes=('py37' 'node10' 'node12')
+for start in `seq 0 2`; do
+    runtime=${secondGenRuntimes[$start]}
+    cat ./platforms/gae_standard/${runtime}/template.yaml $generatedYamlFN \
+        > ./platforms/gae_standard/${runtime}/template-generated.yaml
+done
+rm generatedYamlFN
+# cloud run needs redis connection info too
 echo "ENV REDIS_HOST $redishost" > ./platforms/cloud_run/.redis_info
 echo "ENV REDIS_PORT $redisport" >> ./platforms/cloud_run/.redis_info
 

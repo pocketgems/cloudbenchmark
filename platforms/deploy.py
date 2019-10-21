@@ -384,6 +384,9 @@ class GAEDeploymentGroup(AbstractDeploymentGroup):
                     'service: ' + service,
                     entrypoint_cfg,
                 ])
+                if self.runtime == 'node12':
+                    cfg = cfg.replace('nodejs10', 'nodejs12')
+                    assert 'nodejs12' in cfg
             else:
                 version = 'vdefault'
                 cfg = self.cfg  # default is implied
@@ -525,7 +528,7 @@ def queue_gae_standard_python3_deployments(deployer):
             deployer.add_deploy('py37', framework, entrypoint, tests)
 
 
-def queue_gae_standard_node10_deployments(deployer):
+def queue_gae_standard_node_deployments(deployer):
     """Prepares the NodeJS 10 services.
 
     Total Versions = 2 * 6 = 12
@@ -533,6 +536,8 @@ def queue_gae_standard_node10_deployments(deployer):
     for framework in ('express', 'fastify'):
         deployer.add_deploy('node10', framework,
                             Entrypoint('f1-solo', None), TESTS)
+    deployer.add_deploy('node12', framework,
+                        Entrypoint('f1-solo', None), TESTS)
 
 
 def set_scaling_limit(project_name, service, version, limit):
@@ -578,7 +583,7 @@ def main():
     deployer.add_deploy('default', 'webapp', Entrypoint('default', None), None)
     queue_gae_standard_python2_deployments(deployer)
     queue_gae_standard_python3_deployments(deployer)
-    queue_gae_standard_node10_deployments(deployer)
+    queue_gae_standard_node_deployments(deployer)
     deployer.print_stats()
 
     cr_deployer = CloudRunDeployer(project_name, limit_to_deploy_uids)
