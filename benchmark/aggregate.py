@@ -43,6 +43,8 @@ def aggregate_file(fn):
             test = test[1:]
             if test == 'dbtxtask':
                 test = test[2:]
+        assert ver.endswith('-' + test)
+        ver = ver[:-len(test) - 1]
         core_id = Benchmark(service, ver, test)
         my_core_stats = core_stats[core_id]
         my_core_stats.setdefault('rps', []).append(float(req_per_sec))
