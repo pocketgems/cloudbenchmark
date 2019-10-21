@@ -118,6 +118,9 @@ def get_benchmarks(tests, limit_to_versions):
                 for kind in kinds:
                     service = '%s-%s-%s-%s' % (machine_type, runtime, kind, test)
                     if machine_type == 'managed':
+                        if test == 'memcache':
+                            # can't use memcache from CR managed yet
+                            continue
                         base_url = get_managed_cloud_run_url(service)
                     else:
                         base_url = 'http://' + cluster_ip
