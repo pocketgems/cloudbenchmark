@@ -34,8 +34,17 @@ def aggregate_file(fn):
         columns = line.split('\t')
         utc_str, service, ver, test, req_per_sec, kBps, lmin, l50 = columns[:8]
         l90, l99, non2xx, secs, pct_err, conn_err, startup_millis = columns[8:]
-        framework, part2 = ver.split('-', 1)
-        platform = service + '-' + part2.rsplit('-', 1)[0]
+        if ver == 'n/a':
+            # Cloud Run requires a different naming scheme; construct platform,
+            # service and version such that the mirror the setup for GAE
+            pieces = service.rsplit('-', 4)
+            platform = 'CR ' + pieces[0]
+            service = 'cr-' + pieces[1]
+            ver = '-'.join(pieces[2:])
+        else:
+            framework, part2 = ver.split('-', 1)
+            platform = service + '-' + part2.rsplit('-', 1)[0]
+            service = 'gae-' + service
         startup_stats[platform].append(int(startup_millis))
         # compare ndb tests with the non-ndb version of the test (want to
         # compare them head to head)
