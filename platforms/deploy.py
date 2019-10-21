@@ -262,6 +262,7 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
                 '--platform', 'managed',
                 '--allow-unauthenticated',
                 '--region', 'us-central1',
+                '--memory', '512Mi',
                 '--service-account', service_account,
             ]
         else:
