@@ -6,6 +6,7 @@ import base64
 import json
 import logging
 import os
+import platform
 import random
 import uuid
 import zlib
@@ -115,8 +116,13 @@ async def do_db_indir_async(n):
     return str(sum(x.result() for x in done))
 
 
-def do_db_indir_sync(n):
-    return asyncio.run(do_db_indir_async(n))
+if platform.python_implementation() == 'PyPy':
+    def do_db_indir_sync(n):
+        return asyncio.get_event_loop().run_until_complete(
+            do_db_indir_async(n))
+else:
+    def do_db_indir_sync(n):
+        return asyncio.run(do_db_indir_async(n))
 
 
 async_dbc_get = aioify(dbc.get)
