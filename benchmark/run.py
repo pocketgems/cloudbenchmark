@@ -12,7 +12,8 @@ import time
 import requests
 
 TESTS = set([
-    'noop', 'sleep', #'data',
+    'noop', 'sleep',
+    #'data',
     'memcache', 'dbtx', 'txtask',
     'dbindir', 'dbindirb', 'dbjson'
 ])

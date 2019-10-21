@@ -17,7 +17,9 @@ CLOUD_RUN_MACHINE_TYPES = ('managed',
 INSTANCE_CLASSES = ('F1', 'F2', 'F4')
 MAX_CONCURRENT_REQ = 80  # also in template.ymal (GAE max is 80)
 
-TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbjson',
+TESTS = ('noop', 'sleep',
+         #'data',
+         'memcache', 'dbjson',
          'dbtx', 'txtask', 'dbindir', 'dbindirb')
 PY3TESTS = tuple(list(TESTS) + ['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
 PLATFORMS_DIR = os.path.abspath(os.path.dirname(__file__))
