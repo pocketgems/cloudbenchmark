@@ -235,6 +235,10 @@ class CloudRunDeployer(AbstractDeployer):
                     if worker_type == 'uvicorn':
                         # uvicorn is an asgi server => needs an asgi framework
                         cmd = cmd.replace('falcon', 'fastapi')
+                        if runtime == 'pypy3':
+                            # need a different worker when running with pypy
+                            cmd = cmd.replace('UvicornWorker',
+                                              'UvicornH11Worker')
                     if runtime != 'pypy3' or server_type != 'uwsgi':
                         # uwsgi + pypy3 setup not working w/o major setup work
                         images.append(CloudRunImageConfig(runtime, name, cmd))
