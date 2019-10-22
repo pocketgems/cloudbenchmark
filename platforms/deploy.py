@@ -569,7 +569,7 @@ def queue_gae_standard_node_deployments(deployer):
     for framework in ('express', 'fastify'):
         deployer.add_deploy('node10', framework,
                             Entrypoint('f1-solo', None), TESTS)
-    deployer.add_deploy('node12', framework,
+    deployer.add_deploy('node12', 'fastify',
                         Entrypoint('f1-solo', None), TESTS)
 
 
