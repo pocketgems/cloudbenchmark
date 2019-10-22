@@ -70,11 +70,12 @@ class AbstractDeploymentGroup(namedtuple('AbstractDeploymentGroup', (
         return True
 
     def deploy_all(self, count, limit_to_deploy_uids):
+        deployments = [
+            x for x in self.deployments
+            if not self.is_ignored(limit_to_deploy_uids, x.deployment_uid)]
         deploy_time_log_fn = os.path.join(PLATFORMS_DIR, 'deploy_log.tsv')
         with open(deploy_time_log_fn, 'a') as fout_deploy_log:
-            for x in self.deployments:
-                if self.is_ignored(limit_to_deploy_uids, x.deployment_uid):
-                    continue
+            for x in deployments:
                 self._pre_deploy(x)
                 start = time.time()
                 subprocess.check_call(x.deploy_cmd)
@@ -84,7 +85,8 @@ class AbstractDeploymentGroup(namedtuple('AbstractDeploymentGroup', (
                 if x.post_deploy:
                     x.post_deploy(x)
                 count += 1
-                print 'deployment #%d completed' % count
+                print 'deployment #%d of %d completed' % (
+                    count, len(deployments))
         return count
 
     def print_stats(self, limit_to_deploy_uids):
