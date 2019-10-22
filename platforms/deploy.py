@@ -128,6 +128,11 @@ class CloudRunImageConfig(namedtuple('CloudRunImageConfig', (
     def name(self):
         return '%s-%s' % (self.runtime, self.start_name)
 
+    @property
+    def name_for_service(self):
+        return '%s-%s' % (self.runtime.replace('-managed', ''),
+                          self.start_name)
+
 
 class CloudRunDeployer(AbstractDeployer):
     def __init__(self, project_name, limit_to_deploy_uids):
@@ -144,12 +149,21 @@ class CloudRunDeployer(AbstractDeployer):
             assert x.name != image_cfg.name
         self.container_images.add(image_cfg)
         for group in self.groups:
-            if group.machine_type == 'managed':
+            is_managed_cr_group = group.machine_type == 'managed'
+            if is_managed_cr_group:
                 # memorystore is not supported (yet) on CR Managed
                 my_tests = [x for x in tests if x != 'memcache']
+                # the managed image is used only for CR managed; it is
+                # configured to use just 1 vCPU
+                managed_image_cfg = CloudRunImageConfig(
+                    image_cfg.runtime + '-managed',
+                    image_cfg.start_name,
+                    image_cfg.start_cmd)
+                self.container_images.add(managed_image_cfg)
+                group.add_image(self.project_name, my_tests, managed_image_cfg)
             else:
                 my_tests = tests
-            group.add_image(self.project_name, my_tests, image_cfg)
+                group.add_image(self.project_name, my_tests, image_cfg)
 
     def deploy_all(self):
         images = sorted(self.container_images)
@@ -166,7 +180,8 @@ class CloudRunDeployer(AbstractDeployer):
     def build_image(self, image_cfg):
         os.chdir(PLATFORMS_DIR)
         # create the Dockerfile for this image
-        template_dockerfile_fn = 'cloud_run/Dockerfile.%s' % image_cfg.runtime
+        template_dockerfile_fn = 'cloud_run/Dockerfile.%s' % (
+            image_cfg.runtime.replace('-managed', ''))
         template_dockerfile_raw = open(template_dockerfile_fn, 'r').read()
         lines = [x for x in template_dockerfile_raw.split('\n') if x]
         if lines[-1].startswith('CMD '):
@@ -181,6 +196,14 @@ class CloudRunDeployer(AbstractDeployer):
         dockerfile = '\n'.join([template_dockerfile,
                                 '\n'.join(env_lines),
                                 image_cfg.start_cmd, ''])
+        if image_cfg.runtime.endswith('-managed'):
+            if 'node' in image_cfg.runtime:
+                dockerfile = dockerfile.replace('NUM_CORES 2', 'NUM_CORES 1')
+            else:
+                dockerfile = dockerfile.replace('--workers 2', '--workers 1')
+                dockerfile = dockerfile.replace('--worker-connections 40',
+                                                '--worker-connections 80')
+                dockerfile = dockerfile.replace('--threads 10', '--threads 20')
         with open('Dockerfile', 'w') as fout:
             fout.write(dockerfile)
         # create the cloud build config file for this image
@@ -286,7 +309,8 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
 
         for test in tests:
             service_name = '-'.join([self.machine_type,
-                                     image_cfg.name,  # runtime and start name
+                                     # runtime and start name
+                                     image_cfg.name_for_service,
                                      test])
             deploy_cmd = ['gcloud', 'beta', 'run', 'deploy', service_name,
                           '--image', image,
