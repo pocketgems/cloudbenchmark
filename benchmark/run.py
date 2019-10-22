@@ -100,7 +100,9 @@ def get_benchmarks(tests, limit_to_versions):
     greenlit = []
     for machine_type in CLOUD_RUN_MACHINE_TYPES:
         if machine_type != 'managed':
-            ip_fn = 'platforms/cloud_run/clusterip_%s.txt' % machine_type
+            ip_fn = os.path.join(
+                os.path.abspath(os.path.dirname(__file__)), '../',
+                'platforms/cloud_run/clusterip_%s.txt' % machine_type)
             if not os.path.exists(ip_fn):
                 continue  # cluster not setup
             cluster_ip = open(ip_fn, 'r').read().strip()
