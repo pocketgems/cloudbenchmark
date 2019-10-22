@@ -350,7 +350,8 @@ def main():
         for x in benchmarks:
             print x
         return
-    time.sleep(3)
+    elif len(benchmarks):
+        time.sleep(3)
 
     # figure out how many runs if each test is needed
     completed_count = defaultdict(int)
