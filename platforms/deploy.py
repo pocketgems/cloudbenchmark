@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # pylint: disable=missing-docstring
+import argparse
 from collections import namedtuple
 import json
 import math
 import os
 import re
 import subprocess
-import sys
 import time
 
 import requests
@@ -17,9 +17,7 @@ CLOUD_RUN_MACHINE_TYPES = ('managed',
 INSTANCE_CLASSES = ('F1', 'F2', 'F4')
 MAX_CONCURRENT_REQ = 80  # also in template.ymal (GAE max is 80)
 
-TESTS = ('noop', 'sleep',
-         #'data',
-         'memcache', 'dbjson',
+TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbjson',
          'dbtx', 'txtask', 'dbindir', 'dbindirb')
 PY3TESTS = tuple(list(TESTS) + ['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
 PLATFORMS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -137,8 +135,10 @@ class CloudRunImageConfig(namedtuple('CloudRunImageConfig', (
 
 
 class CloudRunDeployer(AbstractDeployer):
-    def __init__(self, project_name, limit_to_deploy_uids):
+    def __init__(self, project_name, limit_to_deploy_uids,
+                 image_filters):
         AbstractDeployer.__init__(self, project_name, limit_to_deploy_uids)
+        self.image_filters = image_filters
         self.container_images = set()
         self.groups = [
             CloudRunDeploymentGroup(machine_type, None, [])
@@ -170,8 +170,18 @@ class CloudRunDeployer(AbstractDeployer):
     def deploy_all(self):
         images = sorted(self.container_images)
         for i, image in enumerate(images):
-            print 'building image %d of %d' % (i + 1, len(images))
-            self.build_image(image)
+            if self.image_filters:
+                skip = True
+                for regex in self.image_filters:
+                    if regex.search(image.name):
+                        skip = False
+                        break
+            else:
+                skip = False
+            verb = 'building' if not skip else 'skipping'
+            print '%s image %d of %d' % (verb, i + 1, len(images))
+            if not skip:
+                self.build_image(image)
         AbstractDeployer.deploy_all(self)
 
     @staticmethod
@@ -600,18 +610,35 @@ def set_scaling_limit(project_name, service, version, limit):
 
 
 def main():
-    if not sys.argv or 'deploy.py' in sys.argv[-1]:
-        print 'USAGE: ./deploy.py PROJECT_NAME[:DEPLOYMENT_IDS_TO_DEPLOY]'
-        sys.exit(1)
-    if ':' in sys.argv[-1]:
-        project_name, limit_to_deploy_uids = sys.argv[-1].split(':')
-        limit_to_deploy_uids = frozenset(
-            [re.compile(x) for x in limit_to_deploy_uids.split(',')])
-    else:
-        project_name = sys.argv[-1]
-        limit_to_deploy_uids = None
+    parser = argparse.ArgumentParser()
+    parser.add_argument('PROJECT', help='GCP project ID')
+    parser.add_argument('--filter', action='append', dest='filters',
+                        help='regex of deployments to do')
+    parser.add_argument('--filter-images', action='append',
+                        dest='image_filters',
+                        help='regex of images to build ("all" to skip all)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='if passed, only stats will be printed')
+    parser.add_argument('--test', action='append', dest='tests',
+                        choices=list(set(TESTS) - set(['data'])),
+                        help='which tests to deploy; omit to run all except data')
 
-    deployer = GAEDeployer(project_name, limit_to_deploy_uids)
+    args = parser.parse_args()
+    if args.tests:
+        filter_suffix = '-(%s)$' % '|'.join(args.tests)
+    else:
+        filter_suffix = ''
+    limit_to_deploy_uids = [
+        re.compile(x + filter_suffix)
+        for x in args.filters] if args.filters else None
+    if len(args.image_filters) == 1 and args.image_filters[0] == 'all':
+        image_filters = []
+    else:
+        image_filters = [
+            re.compile(x)
+            for x in args.image_filters] if args.image_filters else None
+
+    deployer = GAEDeployer(args.PROJECT, limit_to_deploy_uids)
     # every app engine project requires a default service
     deployer.add_deploy('default', 'webapp', Entrypoint('default', None), None)
     queue_gae_standard_python2_deployments(deployer)
@@ -619,8 +646,10 @@ def main():
     queue_gae_standard_node_deployments(deployer)
     deployer.print_stats()
 
-    cr_deployer = CloudRunDeployer(project_name, limit_to_deploy_uids)
-    cr_deployer.print_stats()
+    if not args.dry_run:
+        cr_deployer = CloudRunDeployer(args.PROJECT, limit_to_deploy_uids,
+                                       image_filters)
+        cr_deployer.print_stats()
 
     deployer.deploy_all()
     cr_deployer.deploy_all()

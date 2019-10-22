@@ -12,9 +12,7 @@ import time
 import requests
 
 TESTS = set([
-    'noop', 'sleep',
-    #'data',
-    'memcache', 'dbtx', 'txtask',
+    'noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask',
     'dbindir', 'dbindirb', 'dbjson'
 ])
 PY3TESTS = TESTS | set(['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
@@ -330,8 +328,8 @@ def main():
     parser.add_argument('--dry-run', action='store_true',
                         help='if passed, benchmarks will be printed, not run')
     parser.add_argument('--test', action='append', dest='tests',
-                        choices=PY3TESTS,
-                        help='which test to run (omit to run all tests)')
+                        choices=list(set(PY3TESTS) - set(['data'])),
+                        help='which tests to run; omit to run all except data')
     args = parser.parse_args()
     limit_to_versions = [
         re.compile(x) for x in args.filters] if args.filters else None
