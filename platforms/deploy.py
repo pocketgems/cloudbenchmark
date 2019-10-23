@@ -55,9 +55,13 @@ class AbstractDeployer(object):
         raise NotImplementedError
 
 
-class AbstractDeploymentGroup(namedtuple('AbstractDeploymentGroup', (
-        'name', 'cfg', 'deployments'))):
+class AbstractDeploymentGroup(object):
     """Helper class to deploy a group of related services."""
+    def __init__(self, name, cfg, deployments):
+        self.name = name
+        self.cfg = cfg
+        self.deployments = deployments
+
     @staticmethod
     def is_ignored(limit_to_deploy_uids, deployment_uid):
         if limit_to_deploy_uids is None:
@@ -136,9 +140,10 @@ class CloudRunImageConfig(namedtuple('CloudRunImageConfig', (
 
 class CloudRunDeployer(AbstractDeployer):
     def __init__(self, project_name, limit_to_deploy_uids,
-                 image_filters):
+                 image_filters, base_domain):
         AbstractDeployer.__init__(self, project_name, limit_to_deploy_uids)
         self.image_filters = image_filters
+        self.base_domain = base_domain
         self.container_images = set()
         self.groups = [
             CloudRunDeploymentGroup(machine_type, None, [])
@@ -168,10 +173,11 @@ class CloudRunDeployer(AbstractDeployer):
                 group.add_image(self.project_name, my_tests, image_cfg)
 
     def deploy_all(self):
+        # build containers
         images = sorted(self.container_images)
         if self.image_filters == []:
-           print 'skipping building all images'
-           images = []
+            print 'skipping building all images'
+            images = []
         for i, image in enumerate(images):
             if self.image_filters is not None:
                 skip = True
@@ -185,7 +191,14 @@ class CloudRunDeployer(AbstractDeployer):
             print '%s image %d of %d' % (verb, i + 1, len(images))
             if not skip:
                 self.build_image(image)
+
+        # deploy services
         AbstractDeployer.deploy_all(self)
+
+        # map custom domains
+        for group in self.groups:
+            if group.machine_type != 'managed':
+                group.map_custom_domains(self.base_domain)
 
     @staticmethod
     def _verify_deploy_limits(all_categories, all_deployment_uids):
@@ -293,11 +306,23 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
     All deployments for a group are part of the same GKE cluster. Each
     deployment will be a separate service on that cluster.
     """
-    CUSTOM_DOMAIN = None
+    def __init__(self, name, cfg, deployments):
+        AbstractDeploymentGroup.__init__(self, name, cfg, deployments)
+        self.services_that_need_domains = []
 
     @property
     def machine_type(self):
         return self.name
+
+    @property
+    def cluster_name(self):
+        return 'cluster-%s' % self.machine_type
+
+    @property
+    def cluster_location(self):
+        if self.machine_type == 'c2-standard-4':
+            return 'us-central1-b'
+        return 'us-central1-a'
 
     def add_image(self, project_name, tests, image_cfg):
         # we're using 1 vCPU for all cloud run services now, so use just one
@@ -344,26 +369,29 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
                 image_cfg, self.machine_type, service_name, deploy_cmd,
                 post_deploy))
 
-    @staticmethod
-    def post_deploy(cr_deploy_cfg):  # pylint: disable=unused-argument
-        domain = CloudRunDeploymentGroup.CUSTOM_DOMAIN
-        if domain:
-            service = cr_deploy_cfg.service
-            loc = 'us-central1-' + (
-                'b' if cr_deploy_cfg.machine_type == 'c2-standard-4' else 'a')
-            cmd = ['gcloud', 'beta', 'run', 'domain-mappings', 'create',
-                   '--service', service,
-                   '--domain', '%s.%s' % (service, domain),
-                   '--platform', 'gke', '--cluster',
-                   'cluster-%s' % cr_deploy_cfg.machine_type,
-                   '--cluster-location', loc]
-            print ' '.join(cmd)
-            try:
-                subprocess.check_call(cmd)
-            except Exception, e:
-                print '*** post deploy exception: %s' % e
+    def map_custom_domains(self, base_domain):
+        if not base_domain or not self.services_that_need_domains:
+            return
+        current_mapped_domains = frozenset(subprocess.check_output([
+            'gcloud', 'beta', 'run', 'domain-mappings', 'list',
+            '--platform', 'gke', '--cluster', self.cluster_name,
+            '--cluster-location', self.cluster_location,
+            '--format', 'value(metadata.name)']).split('\n'))
+        for service in self.services_that_need_domains:
+            domain = '.'.join((service, base_domain))
+            if domain not in current_mapped_domains:
+                subprocess.check_call([
+                    'gcloud', 'beta', 'run', 'domain-mappings', 'create',
+                    '--service', service,
+                    '--domain', '%s' % domain,
+                    '--platform', 'gke', '--cluster', self.cluster_name,
+                    '--cluster-location', self.cluster_location])
+                print 'setup domain %s' % domain
+
+    def post_deploy(self, cr_deploy_cfg):
+        self.services_that_need_domains.append(cr_deploy_cfg.service)
         print ('TODO: use gcloud alpha run services replace to set '
-               'CPU request & limit %s')
+               'CPU request & limit once it works')
 
 
 Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
@@ -650,8 +678,6 @@ def main():
     parser.add_argument('--domain', help='custom domain for CR services')
 
     args = parser.parse_args()
-    if args.domain:
-        CloudRunDeploymentGroup.CUSTOM_DOMAIN = args.domain
     if args.tests:
         filter_suffix = '.*-(%s)$' % '|'.join(args.tests)
     else:
@@ -676,7 +702,7 @@ def main():
 
     if not args.dry_run:
         cr_deployer = CloudRunDeployer(args.PROJECT, limit_to_deploy_uids,
-                                       image_filters)
+                                       image_filters, args.domain)
         cr_deployer.print_stats()
 
     deployer.deploy_all()
