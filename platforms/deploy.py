@@ -359,7 +359,7 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
                                      image_cfg.name_for_service,
                                      test])
             deploy_cmd = ['gcloud', 'alpha', 'run', 'deploy', service_name,
-                          '--image', image,
+                          '--image', image, '--async',
                           '--concurrency', '80',
                           '--max-instances', '1'] + deploy_cmd_extra
             post_deploy = None
