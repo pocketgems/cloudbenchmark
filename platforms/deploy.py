@@ -293,6 +293,8 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
     All deployments for a group are part of the same GKE cluster. Each
     deployment will be a separate service on that cluster.
     """
+    CUSTOM_DOMAIN = None
+
     @property
     def machine_type(self):
         return self.name
@@ -344,6 +346,22 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
 
     @staticmethod
     def post_deploy(cr_deploy_cfg):  # pylint: disable=unused-argument
+        domain = CloudRunDeploymentGroup.CUSTOM_DOMAIN
+        if domain:
+            service = cr_deploy_cfg.service
+            loc = 'us-central1-' + (
+                'b' if cr_deploy_cfg.machine_type == 'c2-standard-4' else 'a')
+            cmd = ['gcloud', 'beta', 'run', 'domain-mappings', 'create',
+                   '--service', service,
+                   '--domain', '%s.%s' % (service, domain),
+                   '--platform', 'gke', '--cluster',
+                   'cluster-%s' % cr_deploy_cfg.machine_type,
+                   '--cluster-location', loc]
+            print ' '.join(cmd)
+            try:
+                subprocess.check_call(cmd)
+            except Exception, e:
+                print '*** post deploy exception: %s' % e
         print ('TODO: use gcloud alpha run services replace to set '
                'CPU request & limit %s')
 
@@ -629,8 +647,11 @@ def main():
     parser.add_argument('--test', action='append', dest='tests',
                         choices=list(set(TESTS) - set(['data'])),
                         help='which tests to deploy; omit to run all except data')
+    parser.add_argument('--domain', help='custom domain for CR services')
 
     args = parser.parse_args()
+    if args.domain:
+        CloudRunDeploymentGroup.CUSTOM_DOMAIN = args.domain
     if args.tests:
         filter_suffix = '.*-(%s)$' % '|'.join(args.tests)
     else:
