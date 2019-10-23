@@ -334,7 +334,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true',
                         help='if passed, benchmarks will be printed, not run')
     parser.add_argument('--test', action='append', dest='tests',
-                        choices=list(set(PY3TESTS) - set(['data'])),
+                        choices=PY3TESTS,
                         help='which tests to run; omit to run all except data')
     args = parser.parse_args()
     limit_to_versions = [
@@ -342,7 +342,7 @@ def main():
     secs = args.secs
     assert args.secs > 0
     assert args.secs <= 290  # limited to 5min runtime on cloud functions
-    tests = set(args.tests or PY3TESTS)
+    tests = set(args.tests or (set(PY3TESTS) - set(['data'])))
     num_runs = args.n
     assert num_runs >= 1
 
