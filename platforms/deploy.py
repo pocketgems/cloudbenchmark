@@ -298,7 +298,11 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
         return self.name
 
     def add_image(self, project_name, tests, image_cfg):
-        image = 'gcr.io/%s/%s:latest' % (project_name, image_cfg.name)
+        # we're using 1 vCPU for all cloud run services now, so use just one
+        # worker for each (rather the default image for non-managed CR which is
+        # configured to use 2 vCPUs)
+        name = '-'.join([image_cfg.runtime, 'managed', image_cfg.start_name])
+        image = 'gcr.io/%s/%s:latest' % (project_name, name)
         if self.machine_type == 'managed':
             service_account = 'forcloudrun@%s.iam.gserviceaccount.com' % (
                 project_name)
