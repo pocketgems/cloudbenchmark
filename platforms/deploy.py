@@ -169,8 +169,11 @@ class CloudRunDeployer(AbstractDeployer):
 
     def deploy_all(self):
         images = sorted(self.container_images)
+        if self.image_filters == []:
+           print 'skipping building all images'
+           images = []
         for i, image in enumerate(images):
-            if self.image_filters:
+            if self.image_filters is not None:
                 skip = True
                 for regex in self.image_filters:
                     if regex.search(image.name):
@@ -616,7 +619,7 @@ def main():
                         help='regex of deployments to do')
     parser.add_argument('--filter-images', action='append',
                         dest='image_filters',
-                        help='regex of images to build ("all" to skip all)')
+                        help='regex of images to build ("none" to skip all)')
     parser.add_argument('--dry-run', action='store_true',
                         help='if passed, only stats will be printed')
     parser.add_argument('--test', action='append', dest='tests',
@@ -625,13 +628,13 @@ def main():
 
     args = parser.parse_args()
     if args.tests:
-        filter_suffix = '-(%s)$' % '|'.join(args.tests)
+        filter_suffix = '.*-(%s)$' % '|'.join(args.tests)
     else:
         filter_suffix = ''
     limit_to_deploy_uids = [
         re.compile(x + filter_suffix)
         for x in args.filters] if args.filters else None
-    if len(args.image_filters) == 1 and args.image_filters[0] == 'all':
+    if args.image_filters and args.image_filters[0] == 'none':
         image_filters = []
     else:
         image_filters = [
