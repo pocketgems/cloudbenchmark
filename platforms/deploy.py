@@ -319,7 +319,7 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
                 '--cluster', 'cluster-%s' % self.machine_type,
                 '--cluster-location', zone,
                 '--timeout', '900',
-                '--cpu', '1.4',
+                '--cpu', '1.0',
                 '--memory', '512Mi']
 
         for test in tests:
