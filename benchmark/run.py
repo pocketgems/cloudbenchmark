@@ -224,7 +224,7 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn):
         project, project, secs, test, service, version,
         # dbjson is a memory (and cpu) hog, so we can max it out and not blow
         # up memory by limiting connections
-        88 if 'json' not in test else 2)
+        88 if 'json' not in test else (2 if is_gae else 5))
 
     if is_gae:
         cmd = 'gcloud app instances %%s --service %s --version %s' % (
