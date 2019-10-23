@@ -213,6 +213,7 @@ def run_benchmarks(results_fn, project, secs, left_by_benchmark):
 
 def run_benchmark(benchmark, secs, project, num_left, results_fn):
     """Runs a single benchmark the specified number of times."""
+    exceptions_left = 5
     service = benchmark.service
     test = benchmark.test
     version = getattr(benchmark, 'version', '')  # only present for GAE bmarks
@@ -300,8 +301,13 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn):
                     with open(results_fn, 'a', buffering=0) as fout:
                         print >> fout, results_line
             num_left -= 1
+            exceptions_left = 5  # refill on success
         except Exception, e:  # pylint: disable=broad-except
             log('EXCEPTION in thread (%s): %s', context, e)
+            exceptions_left -= 1
+            if exceptions_left <= 0:
+                log('giving up on %s', context)
+                break
 
 
 def log(s, *args):
