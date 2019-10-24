@@ -167,7 +167,7 @@ def get_benchmarks(tests, limit_to_versions):
     return greenlit
 
 
-def run_benchmarks(results_fn, project, secs, left_by_benchmark):
+def run_benchmarks_parallel(results_fn, project, secs, left_by_benchmark):
     """Runs each benchmark the specified number of times.
 
     Results will be saved to results_fn (if provided). Otherwise results
@@ -209,6 +209,18 @@ def run_benchmarks(results_fn, project, secs, left_by_benchmark):
                 KILL_FLAG = True
                 prev_num_left = len(threads_left)
                 log('\nShutting down: %d threads left ...', prev_num_left)
+
+
+def run_benchmarks_sequential(results_fn, project, secs, left_by_benchmark):
+    """Single-threaded sequential version of run_benchmarks_parallel."""
+    items = sorted(left_by_benchmark.iteritems())
+    for i, (benchmark, num_left) in enumerate(items):
+        print 'running benchmark %d of %d' % (i + 1, len(left_by_benchmark))
+        run_benchmark(benchmark=benchmark,
+                      secs=secs,
+                      project=project,
+                      num_left=num_left,
+                      results_fn=results_fn)
 
 
 def run_benchmark(benchmark, secs, project, num_left, results_fn):
@@ -333,6 +345,8 @@ def main():
                         default=60)
     parser.add_argument('--dry-run', action='store_true',
                         help='if passed, benchmarks will be printed, not run')
+    parser.add_argument('--sequential', action='store_true',
+                        help='run benchmarks sequentially (not in parallel)')
     parser.add_argument('--test', action='append', dest='tests',
                         choices=PY3TESTS,
                         help='which tests to run; omit to run all except data')
@@ -379,7 +393,11 @@ def main():
     num_done = len(benchmarks) * num_runs - tot_left
     if num_done:
         print '    %d left (%d already done)' % (tot_left, num_done)
-    run_benchmarks(args.results_fn, args.PROJECT, secs, num_left)
+    if args.sequential:
+        run_benchmarks_sequential(
+            args.results_fn, args.PROJECT, secs, num_left)
+    else:
+        run_benchmarks_parallel(args.results_fn, args.PROJECT, secs, num_left)
 
 
 if __name__ == '__main__':
