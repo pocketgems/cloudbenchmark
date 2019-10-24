@@ -8,13 +8,23 @@ import statistics
 def main():
     """Aggregate the specified filename."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('FILENAME', help='filename to aggregate')
+    parser.add_argument('FILENAME', nargs='*',
+                        help='filename(s) to aggregate')
     args = parser.parse_args()
-    aggregate_file(args.FILENAME)
+    aggregate_files_and_print(args.FILENAME)
 
 
 Benchmark = namedtuple('Benchmark', ('service', 'version', 'test'))
 Stats = namedtuple('Stats', ('avg', 'sdev', 'sz'))
+AggregateResult = namedtuple('AggregateResult', (
+    'test', 'service', 'version', 'rps_avg', 'rps_sd', 'l50_avg', 'l50_sd',
+    'non2xx_avg', 'non2xx_sd', 'pct_err_avg', 'pct_err_sd', 'conn_err_avg',
+    'conn_err_sd', 'kBps_avg', 'kBps_sd', 'lmin_avg', 'lmin_sd', 'l99_avg',
+    'l99_sd', 'num_samples'))
+StartupInfo = namedtuple('StartupInfo', (
+    'platform', 'startup_millis_avg', 'startup_millis_sd', 'samples'))
+METRICS = (
+    'rps', 'l50', 'non2xx', 'pct_err', 'conn_err', 'kBps', 'lmin', 'l99')
 
 
 def compute_stats(a):
@@ -23,11 +33,32 @@ def compute_stats(a):
                  len(a))
 
 
-def aggregate_file(fn):
+def aggregate_files_and_print(filenames):
+    startup_stats, benchmark_stats = aggregate_files(filenames)
+    print('\t'.join(['Platform', 'Avg Startup Millis', 'StDev SM', '# Samples']))
+    for platform, stats in sorted(startup_stats.items(),
+                                  key=lambda item: item[1].startup_millis_avg):
+        print('%s\t%d\t%f\t%d' % (platform, stats.startup_millis_avg,
+                                  stats.startup_millis_sd,
+                                  len(stats.samples)))
+    print('\n')
+    headers = ['Test', 'Service', 'Version']
+    for key in METRICS:
+        headers.append('%s-avg' % key)
+        headers.append('%s-sd' % key)
+    headers.append('# Samples')
+    print('\t'.join(headers))
+    for row in benchmark_stats:
+        print('\t'.join(str(x) for x in row))
+
+
+def aggregate_files(filenames):
     startup_stats = defaultdict(list)
     core_stats = defaultdict(dict)
-    with open(fn, 'r') as fin:
-        lines = fin.read().split('\n')
+    lines = []
+    for fn in filenames:
+        with open(fn, 'r') as fin:
+            lines.extend(fin.readlines())
     for line in lines:
         if not line:
             continue
@@ -37,10 +68,10 @@ def aggregate_file(fn):
         if ver == 'n/a':
             # Cloud Run requires a different naming scheme; construct platform,
             # service and version such that the mirror the setup for GAE
-            pieces = service.rsplit('-', 4)
+            pieces = service.rsplit('-', 3)
             platform = 'CR ' + pieces[0]
-            service = 'cr-' + pieces[1]
-            ver = '-'.join(pieces[2:])
+            service = '-'.join(['cr', pieces[0]])
+            ver = '-'.join(pieces[1:])
         else:
             framework, part2 = ver.split('-', 1)
             platform = service + '-' + part2.rsplit('-', 1)[0]
@@ -52,7 +83,7 @@ def aggregate_file(fn):
             test = test[1:]
             if test == 'dbtxtask':
                 test = test[2:]
-        assert ver.endswith('-' + test)
+            ver = 'ndb-' + ver
         ver = ver[:-len(test) - 1]
         core_id = Benchmark(service, ver, test)
         my_core_stats = core_stats[core_id]
@@ -65,40 +96,21 @@ def aggregate_file(fn):
         my_core_stats.setdefault('pct_err', []).append(float(pct_err))
         my_core_stats.setdefault('conn_err', []).append(int(conn_err))
 
-    print('\t'.join(['Platform', 'Avg Startup Millis', 'StDev SM', '# Samples']))
     for platform, stats in startup_stats.items():
-        startup_stats[platform] = compute_stats(stats)
-    for platform, stats in sorted(startup_stats.items(),
-                                  key=lambda item: item[1].avg):
-        print('%s\t%d\t%f\t%d' % (platform, *stats))
+        x = compute_stats(stats)
+        startup_stats[platform] = StartupInfo(platform, x[0], x[1], stats)
 
-    print('\n')
-    headers = ['Test', 'Service', 'Version']
-    keys = ['rps', 'l50', 'non2xx', 'pct_err', 'conn_err', 'kBps', 'lmin', 'l99']
-    for key in keys:
-        headers.append('%s-avg' % key)
-        headers.append('%s-sd' % key)
-    headers.append('# Samples')
-    ignore = set()
     for benchmark, stats in core_stats.items():
-        if len(stats['rps']) < 2:
-            print('warning: only %d data points for %s %s %s' % (
-                len(req_per_sec), *benchmark))
-            ignore.add(benchmark)
-            continue
-        for k in keys:
+        for k in METRICS:
             stats[k] = compute_stats(stats[k])
-    for benchmark in ignore:
-        del core_stats[benchmark]
-    print('\t'.join(headers))
+    benchmark_stats = []
     for benchmark, stats in sorted(core_stats.items(), key=cmp_core):
         values = [benchmark.test, benchmark.service, benchmark.version]
-        for key in keys:
-            avg, sd = stats[key][:2]
-            values.append(str(avg))
-            values.append(str(sd))
-        values.append(str(stats['rps'].sz))
-        print('\t'.join(values))
+        for k in METRICS:
+            values.extend(stats[k][:2])
+        values.append(stats['rps'].sz)
+        benchmark_stats.append(AggregateResult(*values))
+    return startup_stats, benchmark_stats
 
 
 def cmp_core(item):
