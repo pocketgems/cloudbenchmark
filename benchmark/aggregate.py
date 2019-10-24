@@ -89,7 +89,7 @@ def print_startup_stats(startup_stats):
 
 
 def aggregate_files(filenames):
-    startup_stats = defaultdict(list)
+    raw_startup_stats = defaultdict(list)
     core_stats = defaultdict(dict)
     lines = []
     for fn in filenames:
@@ -132,13 +132,16 @@ def aggregate_files(filenames):
         my_core_stats.setdefault('pct_err', []).append(float(pct_err))
         my_core_stats.setdefault('conn_err', []).append(int(conn_err))
         deploy_cat = get_deployment_category(service, ver)
-        startup_stats[deploy_cat].append(int(startup_millis))
+        raw_startup_stats[deploy_cat].append(int(startup_millis))
 
-    for deploy_cat, stats in startup_stats.items():
+    startup_stats = {}
+    for deploy_cat, stats in raw_startup_stats.items():
         if deploy_cat.platform.startswith('CR'):
             # hacky filtering out of junk results from when service must've
             # already been running
             stats = [x for x in stats if x > 2000]
+            if not stats:
+                continue
         x = compute_stats(stats)
         startup_stats[deploy_cat] = StartupInfo(deploy_cat, x[0], x[1], stats)
 
