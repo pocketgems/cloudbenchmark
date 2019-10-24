@@ -49,7 +49,7 @@ exports.doMemcache = async (n, sz) => {
 exports.doDatastoreTx = async (n) => {
     const randomID = uuidv4();
     for (let i = 0; i < n; i++) {
-        const tx = await dbc.transaction();
+        const tx = dbc.transaction();
         await tx.run();
         const counter = await incrDbEntry(tx, randomID);
         tx.save(counter);
@@ -86,7 +86,7 @@ exports.doTxTask = async (n) => {
         let taskFuture = taskq.createTask(request);
         try {
             const randomID = uuidv4();
-            const tx = await dbc.transaction();
+            const tx = dbc.transaction();
             await tx.run();
             const counter = await incrDbEntry(tx, randomID);
             const txDoneSentinel = {
