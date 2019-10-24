@@ -37,20 +37,20 @@ def create_matrix(rows):
 def print_matrix(bests_by_test, deployments):
     tests = list(bests_by_test.keys())
     tests.sort()
-    headers = ['Deployment']
+    headers = ['Platform', 'Machine', 'Runtime', 'Framework']
     headers.extend(tests)
     headers.append('Avg % of Best')
     print('\t'.join(headers))
     deployments = sorted(deployments.items(),
                          key=lambda x: -x[1]['overall'])
-    row = ['BEST']
+    row = ['', '', '', 'BEST']
     for test in tests:
         row.append('%.1f %s' % (bests_by_test[test],
                                 get_primary_metric(test).replace('_avg', '')))
     row.append('--')
     print('\t'.join(row))
     for deployment_id, results in deployments:
-        row = [' '.join(deployment_id).replace('-', ' ')]
+        row = list(aggregate.get_deployment_category(*deployment_id))
         for test in tests + ['overall']:
             row.append(str(results.get(test, '')))
         print('\t'.join(row))

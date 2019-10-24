@@ -16,6 +16,37 @@ StartupInfo = namedtuple('StartupInfo', (
     'platform', 'startup_millis_avg', 'startup_millis_sd', 'samples'))
 METRICS = (
     'rps', 'l50', 'non2xx', 'pct_err', 'conn_err', 'kBps', 'lmin', 'l99')
+DeployCategory = namedtuple('DeployCategory', (
+    'platform', 'startup_millis_avg', 'startup_millis_sd', 'samples'))
+
+
+def get_deployment_category(service, version):
+    deployment_id = '-'.join([service, version])
+    pieces = deployment_id.split('-')
+    if 'cr-managed' in deployment_id:
+        platform = 'CR Managed'
+        machine_type = 'auto'
+        pieces = pieces[2:]
+    elif 'highcpu' in deployment_id:
+        platform = 'CR GKE'
+        machine_type = '-'.join(pieces[1:4])
+        pieces = pieces[4:]
+    elif 'py27' in deployment_id:
+        platform = 'GAE v1'
+        assert(pieces[-1] == 'solo')
+        assert(pieces[-2].startswith('f'))
+        assert(len(pieces[-2]) == 2)
+        machine_type = pieces[-2].upper()
+        pieces = pieces[1:-2]
+    else:
+        platform = 'GAE v2'
+        machine_type = 'F1'
+        pieces = pieces[1:]
+    if pieces[-1] == 'solo':
+        pieces = pieces[:-2]
+    runtime = pieces[0]
+    framework = ' '.join(pieces[1:])
+    return DeployCategory(platform, machine_type, runtime, framework)
 
 
 def compute_stats(a):
@@ -34,23 +65,27 @@ def aggregate_files_and_print(filenames):
 
 
 def print_benchmark_stats(benchmark_stats):
-    headers = ['Test', 'Service', 'Version']
+    headers = ['Test', 'Platform', 'Machine', 'Runtime', 'Framework']
     for key in METRICS:
         headers.append('%s-avg' % key)
         headers.append('%s-sd' % key)
     headers.append('# Samples')
     print('\t'.join(headers))
     for row in benchmark_stats:
-        print('\t'.join(str(x) for x in row))
+        categories = list(get_deployment_category(row.service, row.version))
+        print('\t'.join(str(x)
+                        for x in [row.test] + categories + list(row[3:])))
 
 
 def print_startup_stats(startup_stats):
-    print('\t'.join(['Platform', 'Avg Startup Millis', 'StDev SM', '# Samples']))
-    for platform, stats in sorted(startup_stats.items(),
-                                  key=lambda item: item[1].startup_millis_avg):
-        print('%s\t%d\t%f\t%d' % (platform, stats.startup_millis_avg,
-                                  stats.startup_millis_sd,
-                                  len(stats.samples)))
+    print('\t'.join(['Platform', 'Machine', 'Runtime', 'Framework',
+                     'Avg Startup Millis', 'StDev SM', '# Samples']))
+    for deploy_cat, stats in sorted(
+            startup_stats.items(),
+            key=lambda item: item[1].startup_millis_avg):
+        print('%s\t%s\t%s\t%s\t%d\t%f\t%d' % (
+            *deploy_cat, stats.startup_millis_avg,
+            stats.startup_millis_sd, len(stats.samples)))
 
 
 def aggregate_files(filenames):
@@ -70,14 +105,11 @@ def aggregate_files(filenames):
             # Cloud Run requires a different naming scheme; construct platform,
             # service and version such that the mirror the setup for GAE
             pieces = service.rsplit('-', 3)
-            platform = 'CR ' + pieces[0]
             service = '-'.join(['cr', pieces[0]])
             ver = '-'.join(pieces[1:])
         else:
             framework, part2 = ver.split('-', 1)
-            platform = service + '-' + part2.rsplit('-', 1)[0]
             service = 'gae-' + service
-        startup_stats[platform].append(int(startup_millis))
         if ver.endswith('-' + test):
             ver = ver[:-len(test) - 1]
         elif ver.endswith('-dbjson'):
@@ -99,14 +131,16 @@ def aggregate_files(filenames):
         my_core_stats.setdefault('non2xx', []).append(int(non2xx))
         my_core_stats.setdefault('pct_err', []).append(float(pct_err))
         my_core_stats.setdefault('conn_err', []).append(int(conn_err))
+        deploy_cat = get_deployment_category(service, ver)
+        startup_stats[deploy_cat].append(int(startup_millis))
 
-    for platform, stats in startup_stats.items():
-        if 'CR' in platform:
+    for deploy_cat, stats in startup_stats.items():
+        if deploy_cat.platform.startswith('CR'):
             # hacky filtering out of junk results from when service must've
             # already been running
             stats = [x for x in stats if x > 2000]
         x = compute_stats(stats)
-        startup_stats[platform] = StartupInfo(platform, x[0], x[1], stats)
+        startup_stats[deploy_cat] = StartupInfo(deploy_cat, x[0], x[1], stats)
 
     for benchmark, stats in core_stats.items():
         for k in METRICS:
