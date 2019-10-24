@@ -13,7 +13,7 @@ import requests
 
 TESTS = set([
     'noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask',
-    'dbindir', 'dbindirb', 'dbjson'
+    'dbindir', 'dbindirb', 'dbjson', 'json',
 ])
 PY3TESTS = TESTS | set(['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
 CLOUD_RUN_MACHINE_TYPES = ('managed',
@@ -90,7 +90,7 @@ def get_managed_cloud_run_url(service):
             if url:
                 out[service_id] = url
         CR_URLS = out
-    return CR_URLS[service]
+    return CR_URLS[service.replace('-json', '-dbjson')]
 
 
 def get_benchmarks(tests, limit_to_versions):
@@ -230,6 +230,8 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn,
     orig_exceptions_left = exceptions_left
     service = benchmark.service
     test = benchmark.test
+    if test == 'json':
+        service = service.replace('-json', '-dbjson')
     version = getattr(benchmark, 'version', '')  # only present for GAE bmarks
     is_gae = bool(version)
 
@@ -359,7 +361,7 @@ def main():
     secs = args.secs
     assert args.secs > 0
     assert args.secs <= 290  # limited to 5min runtime on cloud functions
-    tests = set(args.tests or (set(PY3TESTS) - set(['data'])))
+    tests = set(args.tests or (set(PY3TESTS) - set(['data', 'json'])))
     num_runs = args.n
     assert num_runs >= 1
 
