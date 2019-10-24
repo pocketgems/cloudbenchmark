@@ -31,10 +31,21 @@ def aggregate_file(fn):
                            min(secs_arr),
                            len(secs_arr))
     print('\t'.join([
-        'Deploy Category', 'Avg Deploy Secs', 'StDev', 'Min', '# Samples']))
+        'Platform', 'Deploy Category', 'Avg Deploy Secs', 'StDev',
+        'Min', '# Samples']))
     for service, (avg, sdev, minv, n) in sorted(output.items(),
                                                 key=lambda item: item[1][0]):
-        print ('%s\t%.1f\t%.1f\t%.1f\t%d' % (service, avg, sdev, minv, n))
+        if '-managed' in service:
+            platform = 'CR Managed'
+            service = service.replace('-managed', '')
+        elif '-highcpu' in service:
+            platform = 'CR GKE'
+        elif 'py27' in service:
+            platform = 'GAE v1'
+        else:
+            platform = 'GAE v2'
+        print ('%s\t%s\t%.1f\t%.1f\t%.1f\t%d' % (
+            platform, service, avg, sdev, minv, n))
 
 
 if __name__ == '__main__':
