@@ -329,7 +329,11 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
         # we're using 1 vCPU for all cloud run services now, so use just one
         # worker for each (rather the default image for non-managed CR which is
         # configured to use 2 vCPUs)
-        name = '-'.join([image_cfg.runtime, 'managed', image_cfg.start_name])
+        if 'managed' in image_cfg.runtime:
+            name = '-'.join([image_cfg.runtime, image_cfg.start_name])
+        else:
+            name = '-'.join([
+                image_cfg.runtime, 'managed', image_cfg.start_name])
         image = 'gcr.io/%s/%s:latest' % (project_name, name)
         if self.machine_type == 'managed':
             service_account = 'forcloudrun@%s.iam.gserviceaccount.com' % (
