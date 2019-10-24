@@ -353,7 +353,7 @@ def main():
     parser.add_argument('--sequential', action='store_true',
                         help='run benchmarks sequentially (not in parallel)')
     parser.add_argument('--test', action='append', dest='tests',
-                        choices=PY3TESTS,
+                        choices=PY3TESTS | set(['all']),
                         help='which tests to run; omit to run all except data')
     args = parser.parse_args()
     limit_to_versions = [
@@ -361,7 +361,12 @@ def main():
     secs = args.secs
     assert args.secs > 0
     assert args.secs <= 290  # limited to 5min runtime on cloud functions
-    tests = set(args.tests or (set(PY3TESTS) - set(['data', 'json'])))
+    if not args.tests:
+        tests = set(PY3TESTS) - set(['data', 'json'])
+    elif args.tests[0] == 'all':
+        tests = set(PY3TESTS)
+    else:
+        tests = set(args.tests)
     num_runs = args.n
     assert num_runs >= 1
 
