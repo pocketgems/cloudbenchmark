@@ -82,8 +82,9 @@ class AbstractDeploymentGroup(object):
                 start = time.time()
                 subprocess.check_call(x.deploy_cmd)
                 end = time.time()
-                print >> fout_deploy_log, '%s\t%f\t%s' % (
-                    x.deployment_category, end - start, x.deployment_uid)
+                if '--async' not in x.deploy_cmd:
+                    print >> fout_deploy_log, '%s\t%f\t%s' % (
+                        x.deployment_category, end - start, x.deployment_uid)
                 if x.post_deploy:
                     x.post_deploy(x)
                 count += 1
