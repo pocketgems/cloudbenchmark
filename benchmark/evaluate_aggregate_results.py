@@ -43,10 +43,13 @@ def print_matrix(bests_by_test, deployments):
     print('\t'.join(headers))
     deployments = sorted(deployments.items(),
                          key=lambda x: -x[1]['overall'])
-    row = ['', '', '', 'BEST']
+    row = ['', '', '', 'BEST (requests per second)']
     for test in tests:
-        row.append('%.1f %s' % (bests_by_test[test],
-                                get_primary_metric(test).replace('_avg', '')))
+        val = bests_by_test[test]
+        if val >= 100:
+            row.append('%d' % val)
+        else:
+            row.append('%.1f' % val)
     row.append('--')
     print('\t'.join(row))
     for deployment_id, results in deployments:
