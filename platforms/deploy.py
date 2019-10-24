@@ -395,8 +395,8 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
 
     def post_deploy(self, cr_deploy_cfg):
         self.services_that_need_domains.append(cr_deploy_cfg.service)
-        print ('TODO: use gcloud alpha run services replace to set '
-               'CPU request & limit once it works')
+        # non-managed CR deploys need to be spaced out or they fail
+        time.sleep(60)
 
 
 Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
