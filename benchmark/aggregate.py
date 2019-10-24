@@ -5,15 +5,6 @@ from collections import defaultdict, namedtuple
 import statistics
 
 
-def main():
-    """Aggregate the specified filename."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('FILENAME', nargs='*',
-                        help='filename(s) to aggregate')
-    args = parser.parse_args()
-    aggregate_files_and_print(args.FILENAME)
-
-
 Benchmark = namedtuple('Benchmark', ('service', 'version', 'test'))
 Stats = namedtuple('Stats', ('avg', 'sdev', 'sz'))
 AggregateResult = namedtuple('AggregateResult', (
@@ -28,6 +19,8 @@ METRICS = (
 
 
 def compute_stats(a):
+    if len(a) == 1:
+        return Stats(a[0], a[0], 1)
     return Stats(statistics.mean(a),
                  statistics.stdev(a),
                  len(a))
@@ -35,13 +28,12 @@ def compute_stats(a):
 
 def aggregate_files_and_print(filenames):
     startup_stats, benchmark_stats = aggregate_files(filenames)
-    print('\t'.join(['Platform', 'Avg Startup Millis', 'StDev SM', '# Samples']))
-    for platform, stats in sorted(startup_stats.items(),
-                                  key=lambda item: item[1].startup_millis_avg):
-        print('%s\t%d\t%f\t%d' % (platform, stats.startup_millis_avg,
-                                  stats.startup_millis_sd,
-                                  len(stats.samples)))
+    print_startup_stats(startup_stats)
     print('\n')
+    print_benchmark_stats(benchmark_stats)
+
+
+def print_benchmark_stats(benchmark_stats):
     headers = ['Test', 'Service', 'Version']
     for key in METRICS:
         headers.append('%s-avg' % key)
@@ -50,6 +42,15 @@ def aggregate_files_and_print(filenames):
     print('\t'.join(headers))
     for row in benchmark_stats:
         print('\t'.join(str(x) for x in row))
+
+
+def print_startup_stats(startup_stats):
+    print('\t'.join(['Platform', 'Avg Startup Millis', 'StDev SM', '# Samples']))
+    for platform, stats in sorted(startup_stats.items(),
+                                  key=lambda item: item[1].startup_millis_avg):
+        print('%s\t%d\t%f\t%d' % (platform, stats.startup_millis_avg,
+                                  stats.startup_millis_sd,
+                                  len(stats.samples)))
 
 
 def aggregate_files(filenames):
@@ -77,6 +78,10 @@ def aggregate_files(filenames):
             platform = service + '-' + part2.rsplit('-', 1)[0]
             service = 'gae-' + service
         startup_stats[platform].append(int(startup_millis))
+        if ver.endswith('-' + test):
+            ver = ver[:-len(test) - 1]
+        elif ver.endswith('-dbjson'):
+            ver = ver[:-7]
         # compare ndb tests with the non-ndb version of the test (want to
         # compare them head to head)
         if test.startswith('ndb'):
@@ -84,7 +89,6 @@ def aggregate_files(filenames):
             if test == 'dbtxtask':
                 test = test[2:]
             ver = 'ndb-' + ver
-        ver = ver[:-len(test) - 1]
         core_id = Benchmark(service, ver, test)
         my_core_stats = core_stats[core_id]
         my_core_stats.setdefault('rps', []).append(float(req_per_sec))
@@ -97,6 +101,10 @@ def aggregate_files(filenames):
         my_core_stats.setdefault('conn_err', []).append(int(conn_err))
 
     for platform, stats in startup_stats.items():
+        if 'CR' in platform:
+            # hacky filtering out of junk results from when service must've
+            # already been running
+            stats = [x for x in stats if x > 2000]
         x = compute_stats(stats)
         startup_stats[platform] = StartupInfo(platform, x[0], x[1], stats)
 
@@ -118,6 +126,15 @@ def cmp_core(item):
     return (key.test,  # group by test
             val['pct_err'].avg > 0.01,  # high failures last
             -val['rps'].avg)  # highest RPS first
+
+
+def main(f=aggregate_files_and_print):
+    """Aggregate the specified filename."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('FILENAME', nargs='*',
+                        help='filename(s) to aggregate')
+    args = parser.parse_args()
+    return f(args.FILENAME)
 
 
 if __name__ == '__main__':
