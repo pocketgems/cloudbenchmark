@@ -56,8 +56,9 @@ def is_version_ignored(limit_to_versions, version):
     """Returns True if the version should not be benchmarked."""
     if not limit_to_versions:
         return False
-    for regex in limit_to_versions:
-        if regex.search(version):
+    for x in limit_to_versions:
+        if x['regex'].search(version):
+            x['used'] = True
             return False
     return True
 
@@ -357,7 +358,8 @@ def main():
                         help='which tests to run; omit to run all except data')
     args = parser.parse_args()
     limit_to_versions = [
-        re.compile(x) for x in args.filters] if args.filters else None
+        dict(used=False, regex=re.compile(x))
+        for x in args.filters] if args.filters else None
     secs = args.secs
     assert args.secs > 0
     assert args.secs <= 290  # limited to 5min runtime on cloud functions
@@ -372,6 +374,14 @@ def main():
 
     # figure out which benchmarks this test includes
     benchmarks = get_benchmarks(tests, limit_to_versions)
+    bad_filter = False
+    for i, x in enumerate(limit_to_versions or []):
+        if not x['used']:
+            print 'regex matched nothing: ', args.filters[i]
+            bad_filter = True
+    if bad_filter:
+        import sys
+        sys.exit(1)
     print '%d benchmarks to run (%d times each)' % (
         len(benchmarks), num_runs)
     if args.dry_run:
