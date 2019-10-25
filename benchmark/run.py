@@ -397,8 +397,15 @@ def main():
             pieces = line.split('\t')
             uid = Benchmark(*pieces[1:4])
             completed_count[uid] += 1
-    num_left = dict((benchmark, max(0, num_runs - completed_count[benchmark]))
-                    for benchmark in benchmarks)
+    num_left = {}
+    for benchmark in benchmarks:
+        if isinstance(benchmark, CloudRunBenchmark):
+            tmp = CloudRunBenchmark(benchmark.service, 'n/a', benchmark.test)
+            num_done = completed_count[tmp]
+        else:
+            num_done = completed_count[benchmark]
+        num_left[benchmark] = num_runs - num_done
+
     tot_left = sum(num_left.itervalues())
     num_done = len(benchmarks) * num_runs - tot_left
     if num_done:
