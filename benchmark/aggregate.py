@@ -50,9 +50,42 @@ def get_deployment_category(service, version):
     return DeployCategory(platform, machine_type, runtime, framework)
 
 
-def compute_stats(a):
+NUM_SAMPLES = dict(bad=0, total=0)
+THRESHOLD = 2.0
+
+
+def compute_stats(a, check_for_outliers=False):
+    assert a
     if len(a) == 1:
         return Stats(a[0], a[0], 1)
+
+    if check_for_outliers:
+        NUM_SAMPLES['total'] += len(a)
+        new_a = a[:]
+        excluded = []
+        while len(new_a) > 1:
+            mean = float(statistics.mean(a))
+            if not mean:
+                raise Exception('mean is unexpectedly zero')
+            pct_from_mean = [x if x > 1 else 1 / x
+                             for x in [x / mean for x in new_a]]
+            max_pct_from_mean = max(pct_from_mean)
+            if max_pct_from_mean < THRESHOLD:
+                break
+            #excluded.append(max_pct_from_mean)
+            idx = pct_from_mean.index(max_pct_from_mean)
+            excluded.append(new_a.pop(idx))
+        assert new_a  # should never remove every result
+        num_bad = len(a) - len(new_a)
+        if num_bad:
+            NUM_SAMPLES['bad'] += len(pct_from_mean)
+            #print (f'excluded={excluded} mean={statistics.mean(new_a)} a={a}'
+            #       f' new_a({len(new_a)})={new_a} nd={num_bad}',
+            #       file=sys.stderr)
+            return Stats(statistics.mean(new_a),
+                         statistics.stdev(a),
+                         len(new_a))
+
     return Stats(statistics.mean(a),
                  statistics.stdev(a),
                  len(a))
@@ -152,7 +185,7 @@ def aggregate_files(filenames):
     need_more = []
     for benchmark, stats in core_stats.items():
         for k in METRICS:
-            stats[k] = compute_stats(stats[k])
+            stats[k] = compute_stats(stats[k], k == 'rps')
         if stats['rps'].sz < 3:
             need_more.append('.*'.join(x for x in benchmark))
     if need_more:
@@ -172,6 +205,9 @@ def aggregate_files(filenames):
                   '--continue more-data2.tsv ',
                   " ".join("--filter " + x for x in non_cr), '\n',
                   file=sys.stderr)
+    print(f'{NUM_SAMPLES["total"] - NUM_SAMPLES["bad"]} benchmarks '
+          f'(excluding {NUM_SAMPLES["bad"]} outliers discarded)',
+          file=sys.stderr)
     benchmark_stats = []
     for benchmark, stats in sorted(core_stats.items(), key=cmp_core):
         values = [benchmark.test, benchmark.service, benchmark.version]
