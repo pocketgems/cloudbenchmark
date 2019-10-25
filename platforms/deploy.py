@@ -86,7 +86,8 @@ class AbstractDeploymentGroup(object):
                     print >> fout_deploy_log, '%s\t%f\t%s' % (
                         x.deployment_category, end - start, x.deployment_uid)
                 if x.post_deploy:
-                    x.post_deploy(x)
+                    is_last_deploy = (count == len(deployments))
+                    x.post_deploy(x, is_last_deploy)
                 count += 1
                 print 'deployment #%d of %d completed' % (
                     count, len(deployments))
@@ -393,10 +394,11 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
                     '--cluster-location', self.cluster_location])
                 print 'setup domain %s' % domain
 
-    def post_deploy(self, cr_deploy_cfg):
+    def post_deploy(self, cr_deploy_cfg, is_last_deploy):
         self.services_that_need_domains.append(cr_deploy_cfg.service)
         # non-managed CR deploys need to be spaced out or they fail
-        time.sleep(60)
+        if not is_last_deploy:
+            time.sleep(60)
 
 
 Entrypoint = namedtuple('Entrypoint', ('name', 'command'))
@@ -531,7 +533,7 @@ def queue_gae_standard_python2_deployments(deployer):
     for icls in INSTANCE_CLASSES:
         name = icls.lower() + '-solo'
         deployer.add_deploy('py27', 'webapp', Entrypoint(name, None), TESTS,
-                            post=lambda x: set_scaling_limit(
+                            post=lambda x, ignore: set_scaling_limit(
                                 deployer.project_name,
                                 x.service, x.version, 1))
 
