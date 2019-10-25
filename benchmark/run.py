@@ -148,7 +148,7 @@ def get_benchmarks(tests, limit_to_versions):
     to_try.extend(PY3_ENTRY_TYPES_FOR_ASGI)
     for test in tests & PY3TESTS:
         for framework_and_entrypoint in to_try:
-            if 'flask' in framework_and_entrypoint and test  not in TESTS:
+            if 'flask' in framework_and_entrypoint and test not in TESTS:
                 continue  # only standard tests for flask
             version = '%s-%s' % (framework_and_entrypoint, tt(test))
             if not is_version_ignored(limit_to_versions,
