@@ -3,6 +3,7 @@
 import argparse
 from collections import defaultdict, namedtuple
 import statistics
+import sys
 
 
 Benchmark = namedtuple('Benchmark', ('service', 'version', 'test'))
@@ -148,9 +149,29 @@ def aggregate_files(filenames):
         x = compute_stats(stats)
         startup_stats[deploy_cat] = StartupInfo(deploy_cat, x[0], x[1], stats)
 
+    need_more = []
     for benchmark, stats in core_stats.items():
         for k in METRICS:
             stats[k] = compute_stats(stats[k])
+        if stats['rps'].sz < 3:
+            need_more.append('.*'.join(x for x in benchmark))
+    if need_more:
+        need_more = [x.replace('cr-', '').replace('gae-', '')
+                     for x in need_more]
+        cr = [x for x in need_more if 'highcpu' in x]
+        if cr:
+            print(f'need more data for {len(cr)} CR on Anthos:\n  '
+                  './run.py benchmarkgcp2 -n5 --test all --secs 180 '
+                  '--continue more-data.tsv --sequential ',
+                  " ".join("--filter " + x for x in cr), '\n',
+                  file=sys.stderr)
+        non_cr = [x for x in need_more if 'highcpu' not in x]
+        if non_cr:
+            print(f'need more data for {len(non_cr)} others:\n  '
+                  './run.py benchmarkgcp2 -n5 --test all --secs 180 '
+                  '--continue more-data2.tsv ',
+                  " ".join("--filter " + x for x in non_cr), '\n',
+                  file=sys.stderr)
     benchmark_stats = []
     for benchmark, stats in sorted(core_stats.items(), key=cmp_core):
         values = [benchmark.test, benchmark.service, benchmark.version]
