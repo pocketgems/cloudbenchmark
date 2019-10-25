@@ -186,25 +186,53 @@ def aggregate_files(filenames):
     for benchmark, stats in core_stats.items():
         for k in METRICS:
             stats[k] = compute_stats(stats[k], k == 'rps')
-        if stats['rps'].sz < 3:
-            need_more.append('.*'.join(x for x in benchmark))
+        rps_stats = stats['rps']
+        pct = abs(rps_stats.sdev / rps_stats.avg)
+        # warn if fewer than three benchmark results
+        if rps_stats.sz < 3:
+            need_more.append('-'.join(x for x in benchmark))
+        # warn if stdev is >20% of mean
+        elif pct > 0.2:
+            need_more.append('-'.join(x for x in benchmark))
+            print (f'pct={pct} mean={rps_stats.avg} sdev={rps_stats.sdev}',
+                   file=sys.stderr)
+
+    # some really hacvky code to print the benchmark runner commands we need;
+    # we need to run CR on Anthos sequentially, so those are separated. We also
+    # need to run plain json tests separately.
+    project = 'benchmarkgcp2'
+    print(f'{len(core_stats) - len(need_more)} benchmarks have enough '
+          'data', file=sys.stderr)
     if need_more:
         need_more = [x.replace('cr-', '').replace('gae-', '')
                      for x in need_more]
-        cr = [x for x in need_more if 'highcpu' in x]
-        if cr:
-            print(f'need more data for {len(cr)} CR on Anthos:\n  '
-                  './run.py benchmarkgcp2 -n5 --test all --secs 180 '
-                  '--continue more-data.tsv --sequential ',
-                  " ".join("--filter " + x for x in cr), '\n',
-                  file=sys.stderr)
-        non_cr = [x for x in need_more if 'highcpu' not in x]
-        if non_cr:
-            print(f'need more data for {len(non_cr)} others:\n  '
-                  './run.py benchmarkgcp2 -n5 --test all --secs 180 '
-                  '--continue more-data2.tsv ',
-                  " ".join("--filter " + x for x in non_cr), '\n',
-                  file=sys.stderr)
+        need_more_json = []
+        for i, x in enumerate(need_more):
+            if x.endswith('-json'):
+                need_more[i] = None
+                need_more_json.append(x.replace('-json', ''))
+            elif 'ndb' in x:
+                x = x.replace('ndb-', '')
+                idx = x.rindex('-') + 1
+                x = x[:idx] + 'ndb' + x[idx:].replace('db', '')
+                need_more[i] = x
+        need_more = [x for x in need_more if x]
+        for nm in (need_more, need_more_json):
+            test = 'all' if nm is need_more else 'json'
+            cr = [x for x in nm if 'highcpu' in x]
+            if cr:
+                print(f'need more data for {len(cr)} CR on Anthos:\n  '
+                      f'./run.py {project} -n5 --test {test} --secs 180 '
+                      '--continue more-data.tsv --sequential ',
+                      " ".join(f"--filter '{x}$'" for x in cr), '\n',
+                      file=sys.stderr)
+            non_cr = [x for x in nm if 'highcpu' not in x]
+            if non_cr:
+                print(f'need more data for {len(non_cr)} others:\n  '
+                      f'./run.py {project} -n5 --test {test} --secs 180 '
+                      '--continue more-data2.tsv ',
+                      " ".join(f"--filter '{x}$'" for x in non_cr), '\n',
+                      file=sys.stderr)
     print(f'{NUM_SAMPLES["total"] - NUM_SAMPLES["bad"]} benchmarks '
           f'(excluding {NUM_SAMPLES["bad"]} outliers discarded)',
           file=sys.stderr)
