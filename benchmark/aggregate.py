@@ -121,9 +121,12 @@ def aggregate_files(filenames):
             if test == 'dbtxtask':
                 test = test[2:]
             ver = 'ndb-' + ver
+        rps = float(req_per_sec)
+        if rps == 0:
+            continue
         core_id = Benchmark(service, ver, test)
         my_core_stats = core_stats[core_id]
-        my_core_stats.setdefault('rps', []).append(float(req_per_sec))
+        my_core_stats.setdefault('rps', []).append(rps)
         my_core_stats.setdefault('kBps', []).append(float(kBps))
         my_core_stats.setdefault('lmin', []).append(float(lmin))
         my_core_stats.setdefault('l50', []).append(float(l50))
