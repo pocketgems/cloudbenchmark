@@ -67,25 +67,34 @@ def compute_stats(a, check_for_outliers=False):
         excluded = []
         while len(new_a) > 1:
             mean = float(statistics.mean(a))
+            sdev = statistics.stdev(a)
             if not mean:
                 raise Exception('mean is unexpectedly zero')
             pct_from_mean = [x if x > 1 else 1 / x
                              for x in [x / mean for x in new_a]]
             max_pct_from_mean = max(pct_from_mean)
-            if max_pct_from_mean < THRESHOLD:
-                break
-            #excluded.append(max_pct_from_mean)
             idx = pct_from_mean.index(max_pct_from_mean)
+            if False or max_pct_from_mean < THRESHOLD:
+                sdev = statistics.stdev(a)
+                sdev_from_mean = [abs(x - mean) / sdev for x in new_a]
+                max_sdev_from_mean = max(sdev_from_mean)
+                idx = sdev_from_mean.index(max_sdev_from_mean)
+                # if True --> not eliminating based on number of sdev
+                if True or max_sdev_from_mean < 1.5:
+                    #print(f'max_pct_from_mean={max_pct_from_mean}'
+                    #      f'max_sdev={max_sdev_from_mean}',
+                    #      file=sys.stderr)
+                    break
             excluded.append(new_a.pop(idx))
         assert new_a  # should never remove every result
         num_bad = len(a) - len(new_a)
         if num_bad:
             NUM_SAMPLES['bad'] += len(pct_from_mean)
-            #print (f'excluded={excluded} mean={statistics.mean(new_a)} a={a}'
-            #       f' new_a({len(new_a)})={new_a} nd={num_bad}',
-            #       file=sys.stderr)
+            print (f'excluded={excluded} mean={statistics.mean(new_a)} a={a}'
+                   f' new_a({len(new_a)})={new_a} nd={num_bad}',
+                   file=sys.stderr)
             return Stats(statistics.mean(new_a),
-                         statistics.stdev(a),
+                         statistics.stdev(new_a) if len(new_a) >= 2 else 0,
                          len(new_a))
 
     return Stats(statistics.mean(a),
@@ -186,17 +195,21 @@ def aggregate_files(filenames):
 
     need_more = []
     for benchmark, stats in core_stats.items():
+        import copy
+        tmp = copy.deepcopy(stats)
         for k in METRICS:
             stats[k] = compute_stats(stats[k], k == 'rps')
         rps_stats = stats['rps']
         pct = abs(rps_stats.sdev / rps_stats.avg)
         # warn if fewer than three benchmark results
         if rps_stats.sz < 3:
-            need_more.append('-'.join(x for x in benchmark))
-        # warn if stdev is >20% of mean
-        elif pct > 0.2:
+            if False:
+                need_more.append('-'.join(x for x in benchmark))
+        # warn if stdev is >X% of mean
+        elif pct > 0.3:
             need_more.append('-'.join(x for x in benchmark))
             print (f'pct={pct} mean={rps_stats.avg} sdev={rps_stats.sdev}',
+                   f'rps={tmp["rps"]} ... {benchmark}',
                    file=sys.stderr)
 
     # some really hacvky code to print the benchmark runner commands we need;
