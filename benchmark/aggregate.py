@@ -46,6 +46,8 @@ def get_deployment_category(service, version):
     if pieces[-1] == 'solo':
         pieces = pieces[:-2]
     runtime = pieces[0]
+    if runtime == 'py3':
+        runtime = 'py37'
     framework = ' '.join(pieces[1:])
     return DeployCategory(platform, machine_type, runtime, framework)
 
