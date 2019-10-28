@@ -145,8 +145,8 @@ gcloud services enable logging.googleapis.com
 gcloud services enable monitoring.googleapis.com
 gcloud services enable stackdriver.googleapis.com
 # put our clusters in the same region and zone as our benchmarker
-machineTypes=('c2-standard-4' 'n1-highcpu-2' 'n2-highcpu-2' 'custom-2-1024')
-for start in `seq 0 3`; do
+machineTypes=('n1-highcpu-2' 'n2-highcpu-2')
+for start in `seq 0 1`; do
     machineType=${machineTypes[$start]}
     if [ $machineType == 'c2-standard-4' ]; then
         zone='us-central1-b'  # not available in zone a yet
@@ -176,7 +176,7 @@ done
 # clusters take some time to startup, so we create the clusters and then we try
 # to get their IPs later
 sleep 60
-for start in `seq 0 3`; do
+for start in `seq 0 1`; do
     machineType=${machineTypes[$start]}
     if [ $machineType == 'c2-standard-4' ]; then
         zone='us-central1-b'  # not available in zone a yet
