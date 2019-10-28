@@ -490,6 +490,9 @@ class GAEDeploymentGroup(AbstractDeploymentGroup):
                 if self.runtime == 'node12':
                     cfg = cfg.replace('nodejs10', 'nodejs12')
                     assert 'nodejs12' in cfg
+                elif self.runtime == 'py38':
+                    cfg = cfg.replace('python37', 'python38')
+                    assert 'python38' in cfg
             else:
                 version = 'vdefault'
                 cfg = self.cfg  # default is implied
@@ -629,6 +632,9 @@ def queue_gae_standard_python3_deployments(deployer):
                 if 'uwsgi' in entrypoint.name:
                     continue  # no uwsgi tests for flask
             deployer.add_deploy('py37', framework, entrypoint, tests)
+            if framework == 'falcon':
+                if entrypoint.name == 'gunicorn-gevent1w':
+                    deployer.add_deploy('py38', framework, entrypoint, tests)
 
 
 def queue_gae_standard_node_deployments(deployer):

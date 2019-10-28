@@ -1,4 +1,5 @@
 Flask==1.0.2
+uvloop==0.14.0rc1
 gunicorn==19.9.0
 gevent==1.4.0
 google-cloud-datastore

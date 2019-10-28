@@ -154,6 +154,12 @@ def get_benchmarks(tests, limit_to_versions):
             if not is_version_ignored(limit_to_versions,
                                       service + '-' + version):
                 greenlit.append(Benchmark(service, version, test))
+    service = 'py38'
+    for test in tests & PY3TESTS:
+        version = 'falcon-gunicorn-gevent1w-%s' % test
+        if not is_version_ignored(limit_to_versions,
+                                  service + '-' + version):
+            greenlit.append(Benchmark(service, version, test))
     for test in tests & TESTS:
         for framework in ('express', 'fastify',):
             if framework == 'fastify':
