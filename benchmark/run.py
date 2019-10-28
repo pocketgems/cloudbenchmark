@@ -375,6 +375,9 @@ def main():
         tests = set(PY3TESTS)
     else:
         tests = set(args.tests)
+    if 'json' in tests and 'dbjson' in tests:
+        print 'not running json test at same time as dbjson'
+        tests.remove('json')
     num_runs = args.n
     assert num_runs >= 1
 
