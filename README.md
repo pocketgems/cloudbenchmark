@@ -5,9 +5,10 @@ GKE is the slowest part by far right now due to its sequential test
 running). Remember to delete the project when you're done testing. Testing will
 likely cost at least many hundreds of dollars.
 
-1. Create a new GCP project where you'll run the test. Enable billing!
-1. Run `./setup.sh "PROJECT_NAME_HERE"` (you'll be prompted to sign in, and then
-   the script will deploy a bunch of services, etc.).
+1. Run `./setup.sh "PROJECT_NAME_HERE"` (you'll be prompted to sign in, and
+   then the script will deploy a bunch of services, etc.). This will create
+   your project and set it up for testing. You'll be prompted to enable
+   billing, etc.
 1. Compute deployment stats: `./platform/aggregate_deploy_times.py`
 1. Run the benchmarks:
     * Run GAE and CR Managed tests (except json): `./benchmark/run.py "PROJECT_NAME_HERE" -n5 --secs 180 --continue data.json --filter '^(py37|py38|node10|node12|managed)' --test all`
