@@ -11,9 +11,14 @@ if [ ! -f "Dockerfile.${runtime}" ]; then
     echo "Dockerfile.${runtime} not found"
     exit 1
 fi
+if [ ${runtime} = "node10" ]; then
+    LOCALPORT=8080
+else
+    LOCALPORT=8081
+fi
 time docker build -t ${runtime}:test -f Dockerfile.${runtime} .. &&
-  PORT=8080 && docker run \
-   -p 8080:${PORT} \
+  PORT=${LOCALPORT} && docker run \
+   -p ${LOCALPORT}:${PORT} \
    -e PORT=${PORT} \
    -e GAE_APPLICATION=${project} \
    ${runtime}:test
