@@ -9,16 +9,17 @@ import os
 import platform
 import random
 import uuid
-import zlib
 
 from google.cloud import datastore as db
 try:
     import orjson as json
-    IS_ORJSON = True
 except ModuleNotFoundError:
-    import json
-    log(logging.INFO, 'using std lib json (not orjson)')
-    IS_ORJSON = False
+    try:
+        import ujson as json
+        log(logging.INFO, 'using ujson (not orjson)')
+    except ModuleNotFoundError:
+        import json
+        log(logging.INFO, 'using std lib json (not orjson)')
 
 
 dbc = db.Client()
@@ -79,31 +80,22 @@ def incr_db_entry(some_id):
     return x
 
 
-LARGE_JSON = None
+with open('big.json', 'rb') as fin:
+    LARGE_JSON = json.loads(fin.read())
 
 
 def do_db_json(json_only=False):
-    global LARGE_JSON
-    if not LARGE_JSON:
-        with open('big.json', 'rb') as fin:
-            LARGE_JSON = json.loads(fin.read())
-        if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', ''):
-            # don't include in benchmark (but this stops cloud run from
-            # launching the instance so don't do this on cloud run)
-            raise Exception('read from file')
     dump = json.dumps(LARGE_JSON)
-    if not IS_ORJSON:
-        dump = dump.encode('utf-8')
     if json_only:
         json.loads(dump)
         return 'did json only'
     random_id = uuid.uuid4().hex
     key = dbc.key('BigJsonHolder', random_id)
     x = db.Entity(key=key, exclude_from_indexes=('data',))
-    x['data'] = zlib.compress(dump)
+    x['data'] = dump
     dbc.put(x)
     x = dbc.get(key)
-    data = zlib.decompress(x['data'])
+    data = x['data']
     json.loads(data)
     return len(data)
 

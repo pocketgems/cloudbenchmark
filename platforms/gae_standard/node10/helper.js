@@ -1,8 +1,5 @@
 const util = require('util');
 const uuidv4 = require('uuid/v4');
-const zlib = require('zlib');
-const deflate = util.promisify(zlib.deflate);
-const inflate = util.promisify(zlib.inflate);
 
 const APP_ID = (process.env.GAE_APPLICATION || '').replace('s~', '');
 
@@ -132,13 +129,10 @@ async function incrDbEntry(tx, someID) {
     };
 }
 
-var bigJson = undefined;
+const fs = require('fs');
+const bigJson = JSON.parse(fs.readFileSync('big.json', 'utf8'));
+
 exports.doDbJson = async (jsonOnly) => {
-    if (!bigJson) {
-        const fs = require('fs');
-        bigJson = JSON.parse(fs.readFileSync('big.json', 'utf8'));
-        throw new Error('read from file');  // don't include in benchmark
-    }
     if (jsonOnly) {
         JSON.parse(JSON.stringify(bigJson));
         return 'did json only';
@@ -146,7 +140,7 @@ exports.doDbJson = async (jsonOnly) => {
 
     const randomID = uuidv4();
     const key = dbc.key(['BigJsonHolder', randomID]);
-    const val = await deflate(JSON.stringify(bigJson));
+    const val = JSON.stringify(bigJson);
     await dbc.save({
         key: key,
         data: [{
@@ -156,8 +150,7 @@ exports.doDbJson = async (jsonOnly) => {
         }]
     });
     const [entity] = await dbc.get(key);
-    const input = entity.data;
-    const data = await inflate(input);
+    const data = entity.data;
     JSON.parse(data);
     return data.length.toString();
 };
