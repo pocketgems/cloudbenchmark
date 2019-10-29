@@ -20,6 +20,7 @@ else
 fi
 time docker build -t ${runtime}:test -f Dockerfile.${runtime} .. &&
   PORT=${LOCALPORT} && docker run \
+   --cpus=1 \
    -p ${LOCALPORT}:${PORT} \
    -e PORT=${PORT} \
    -e GAE_APPLICATION=${project} \
