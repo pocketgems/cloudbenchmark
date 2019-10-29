@@ -11,4 +11,4 @@ COPY gae_standard/py27/big.json \
      gae_standard/py37/helper_db.py \
      gae_standard/py37/helper_ndb.py \
      ./
-CMD exec gunicorn --workers 2 --bind :$PORT falcon_main:app --error-logfile=- --log-level warning
+CMD exec gunicorn --workers 1 --worker-class gevent --worker-connections 80 --bind :$PORT falcon_main:app --error-logfile=- --log-level warning
