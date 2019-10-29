@@ -252,12 +252,41 @@ def aggregate_files(filenames):
           f'(excluding {NUM_SAMPLES["bad"]} outliers discarded)',
           file=sys.stderr)
     benchmark_stats = []
+    hybrid_results = {}
     for benchmark, stats in sorted(core_stats.items(), key=cmp_core):
         values = [benchmark.test, benchmark.service, benchmark.version]
         for k in METRICS:
             values.extend(stats[k][:2])
         values.append(stats['rps'].sz)
         benchmark_stats.append(AggregateResult(*values))
+
+        key = (benchmark.service, benchmark.version)
+        if benchmark.test in ('json', 'txtask'):
+            hybrid_results.setdefault(key, {})[benchmark.test] = stats
+
+    for bmark, v in hybrid_results.items():
+        values = ['hybrid-json+txtask'] + list(bmark)
+        for k in METRICS:
+            if k == 'rps':
+                # each txtask request does FIVE txtask, one after another
+                if len(v.keys()) != 2:
+                    print(bmark, v.keys(), file=sys.stderr)
+                    values = None
+                    break
+                secs_per_tx_task = (1 / v['txtask']['rps'].avg) / 5
+                # each json request is just one json decode/encode
+                secs_per_json = (1 / v['json']['rps'].avg)
+                seconds_one_json_one_tx_task = secs_per_tx_task + secs_per_json
+                values.append(1 / seconds_one_json_one_tx_task)  # back to rps
+            elif k.startswith('l'):
+                values.append(sum([x[k].avg for x in v.values()]))
+            else:
+                values.append(-1)
+            values.append(-1)
+        if values:
+            values.append(sum([x['rps'].sz for x in v.values()]) / 2)
+            benchmark_stats.append(AggregateResult(*values))
+
     return startup_stats, benchmark_stats
 
 
