@@ -713,13 +713,13 @@ def main():
     queue_gae_standard_node_deployments(deployer)
     deployer.print_stats()
 
-    if not args.dry_run:
-        cr_deployer = CloudRunDeployer(args.PROJECT, limit_to_deploy_uids,
-                                       image_filters, args.domain)
-        cr_deployer.print_stats()
+    cr_deployer = CloudRunDeployer(args.PROJECT, limit_to_deploy_uids,
+                                   image_filters, args.domain)
+    cr_deployer.print_stats()
 
-    deployer.deploy_all()
-    cr_deployer.deploy_all()
+    if not args.dry_run:
+        deployer.deploy_all()
+        cr_deployer.deploy_all()
 
 
 if __name__ == '__main__':
