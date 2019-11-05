@@ -13,6 +13,7 @@ import requests
 
 TESTS = set([
     'noop', 'sleep', 'data', 'memcache', 'dbtx', 'txtask',
+    'dbtx1', 'dbtxforid', 'dbtxwithlock', 'dbtxmehlock',
     'dbindir', 'dbindirb', 'dbjson', 'json',
 ])
 PY3TESTS = TESTS | set(['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
@@ -91,6 +92,7 @@ def get_managed_cloud_run_url(service):
             if url:
                 out[service_id] = url
         CR_URLS = out
+    return 'tmp'
     return CR_URLS[service.replace('-json', '-dbjson')]
 
 

@@ -41,6 +41,29 @@ fastify.get('/test/dbtx', async (req, reply) => {
     reply.send();
 });
 
+
+
+
+fastify.get('/test/dbtx1', async (req, reply) => {
+    await helper.doDatastoreTx(1);
+    reply.send();
+});
+fastify.get('/test/dbtxforid', async (req, reply) => {
+    await helper.doDatastoreTxForID(1, req.query.id || 'foridtest');
+    reply.send();
+});
+fastify.get('/test/dbtxwithlock', async (req, reply) => {
+    await helper.doDatastoreTxWithRedisLock(1, req.query.id || 'forlktest');
+    reply.send();
+});
+fastify.get('/test/dbtxmehlock', async (req, reply) => {
+    await helper.doDatastoreTxWithMehLock(1);
+    reply.send();
+});
+
+
+
+
 fastify.get('/test/txtask', async (req, reply) => {
     const n = +req.query.n || 5;
     await helper.doTxTask(n);
