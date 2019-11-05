@@ -15,7 +15,7 @@ const taskqcfg = process.env.GOOGLE_APPLICATION_CREDENTIALS ? undefined : {
 };
 const taskq = new CloudTasksClient(taskqcfg);
 
-const rcache = (process.env.REDIS_HOST ? require('redis').createClient({
+const rcache = (process.env.REDIS_HOST ? require('async-redis').createClient({
     host: process.env.REDIS_HOST,
     port: +process.env.REDIS_PORT,
 }) : null);
@@ -48,42 +48,14 @@ exports.doMemcache = async (n, sz) => {
 
 exports.doDatastoreTx = async (n) => {
     const randomID = uuidv4();
-    await exports.doDatastoreTxForID(n, randomID);
-}
-exports.doDatastoreTxForID = async (n, id) => {
     for (let i = 0; i < n; i++) {
         const tx = dbc.transaction();
         await tx.run();
-        const counter = await incrDbEntry(tx, id);
+        const counter = await incrDbEntry(tx, randomID);
         tx.save(counter);
         await tx.commit();
     }
 }
-
-var Redlock = require('redlock');
-var redlock = new Redlock(
-	[rcache],
-	{
-		driftFactor: 0.01,
-		retryCount:  10,
-		retryDelay:  50,
-		retryJitter:  200
-	}
-);
-redlock.on('clientError', function(err) {
-	console.error('Redlock: A redis error has occurred:', err);
-});
-
-exports.doDatastoreTxWithRedisLock = async (n, id) => {
-    const lock = await redlock.lock('locks:' + id, 60000);
-    console.log('got lock', id);
-    await exports.doDatastoreTxForID(n, id);
-	await lock.unlock();
-}
-exports.doDatastoreTxWithMehLock = async (n) => {
-    await exports.doDatastoreTxWithRedisLock(1, uuidv4());
-}
-
 
 exports.doTxTask = async (n) => {
     for (let i = 0; i < n; i++) {

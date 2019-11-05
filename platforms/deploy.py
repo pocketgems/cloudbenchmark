@@ -18,7 +18,6 @@ INSTANCE_CLASSES = ('F1', 'F2', 'F4')
 MAX_CONCURRENT_REQ = 80  # also in template.ymal (GAE max is 80)
 
 TESTS = ('noop', 'sleep', 'data', 'memcache', 'dbjson',
-         'dbtx1', 'dbtxforid', 'dbtxwithlock', 'dbtxmehlock',
          'dbtx', 'txtask', 'dbindir', 'dbindirb')
 PY3TESTS = tuple(list(TESTS) + ['ndbtx', 'ndbtxtask', 'ndbindir', 'ndbindirb'])
 PLATFORMS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -205,7 +204,6 @@ class CloudRunDeployer(AbstractDeployer):
 
     @staticmethod
     def _verify_deploy_limits(all_categories, all_deployment_uids):
-        return
         assert len(all_deployment_uids) / len(all_categories) <= 150, (
             "can't have more than 150 services per cluster")
 
@@ -453,7 +451,6 @@ class GAEDeployer(AbstractDeployer):
 
     @staticmethod
     def _verify_deploy_limits(all_categories, all_deployment_uids):
-        return
         assert len(all_categories) <= 105, "can't have more than 105 services"
         assert len(all_deployment_uids) <= 210, (
             "can't have more than 210 versions")
