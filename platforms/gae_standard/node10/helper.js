@@ -27,8 +27,8 @@ else {
 }
 
 exports.sleep = (secs) => {
-    return new Promise(replyolve => {
-        setTimeout(replyolve, secs * 1000);
+    return new Promise(resolve => {
+        setTimeout(resolve, secs * 1000);
     });
 };
 
