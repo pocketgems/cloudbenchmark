@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "async-redis": "^1.1.7",
+    "aws-sdk": "latest",
+    "fastify": "^2.8.0",
+    "redis": "^2.8.0",
+    "uuid": "^3.3.3"
+  },
+  "scripts": {
+    "start": "NODE_ENV=production node fastify_main.js"
+  }
+}
