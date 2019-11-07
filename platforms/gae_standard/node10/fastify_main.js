@@ -6,6 +6,9 @@ const helper = require('./helper');
 fastify.get('/_ah/warmup', async (req, reply) => {
     reply.send();
 });
+fastify.get('/', async (req, reply) => {
+    reply.send();
+});
 
 fastify.get('/test/log', async (req, reply) => {
     console.log('hello world');
