@@ -154,10 +154,9 @@ for start in `seq 0 1`; do
         zone='us-central1-a'
     fi
     clusterName=cluster-$machineType
-    # Istio addon no longer required as of 1.13.10-gke.8+
     gcloud beta container clusters create $clusterName \
            --machine-type=$machineType \
-           --addons=HorizontalPodAutoscaling,HttpLoadBalancing,Istio,CloudRun \
+           --addons=HorizontalPodAutoscaling,HttpLoadBalancing,CloudRun \
            --scopes cloud-platform \
            --metadata disable-legacy-endpoints=true \
            --enable-ip-alias \
@@ -179,7 +178,7 @@ sleep 60
 for start in `seq 0 1`; do
     machineType=${machineTypes[$start]}
     if [ $machineType == 'c2-standard-4' ]; then
-        zone='us-central1-b'  # not available in zone a yet
+        zone='us-central1-b'  # not available in zone us-central1-a yet
     else
         zone='us-central1-a'
     fi
