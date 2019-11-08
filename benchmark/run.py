@@ -360,10 +360,20 @@ def make_request(benchmark, url):
     d = dict((k, v[0]) for k, v in urlparse.parse_qs(qparams).iteritems())
     d['isAWS'] = True
     d['hostname'] = benchmark.host
-    resp = requests.post(LAMBDA_TEST_URL, data=json.dumps(d))
-    if resp.status_code == 200:
-        resp = FakeResp(json.loads(resp.content), resp.status_code)
-    return resp
+    # AWS Gateway max timeout is 30sec; so to run longer tests we have to use
+    # the command line to run the function instead.
+    try:
+        os.unlink('out')
+    except:
+        if os.path.exists('out'):
+            raise
+    output = json.loads(subprocess.check_output([
+        'aws', 'lambda', 'invoke', '--function-name', 'run-benchmark',
+        '--payload', json.dumps(d), 'out']))
+    if output['StatusCode'] != 200:
+        return FakeResp(json.dumps(output), output['StatusCode'])
+    content = json.loads(open('out', 'r').read())
+    return FakeResp(content, 200)
 
 
 def log(s, *args):
