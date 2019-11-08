@@ -3,7 +3,7 @@ const autocannon = require('autocannon');
 
 async function benchmark(projectName, noSSL, hostname, service, version,
                          testName, numConnections, durationSecs, numRequests,
-                         isSummaryDesired) {
+                         isSummaryDesired, isAWS) {
     const scheme = noSSL ? 'http://' : 'https://';
     var headers;
     if (!hostname) {
@@ -13,7 +13,7 @@ async function benchmark(projectName, noSSL, hostname, service, version,
     }
     else {
         version = 'n/a';  // not relevant when hostname is provided
-        if (service.indexOf('managed') !== 0) {
+        if (service.indexOf('managed') !== 0 && !isAWS) {
             console.log(service, service.indexOf('managed'));
             headers = {
                 'host': service + '.default.example.com'
@@ -36,15 +36,18 @@ async function benchmark(projectName, noSSL, hostname, service, version,
     }
     const url = [scheme, hostname, path].join('');
     console.log(`url=${url} headers=${headers}`);
-    var out = await autocannon({
+    const cfg = {
         amount: numRequests,
         connections: numConnections,
-        duration: durationSecs,
         excludeErrorStats: true,
         headers: headers,
         pipelining: 1,
         url: url
-    });
+    };
+    if (durationSecs) {
+        cfg.duration = durationSecs;
+    }
+    var out = await autocannon(cfg);
     out.service = service;
     out.version = version;
     out.testName = testName;
