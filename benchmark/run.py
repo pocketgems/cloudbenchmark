@@ -360,6 +360,8 @@ def make_request(benchmark, url):
     d = dict((k, v[0]) for k, v in urlparse.parse_qs(qparams).iteritems())
     d['isAWS'] = True
     d['hostname'] = benchmark.host
+    if d['test'] == 'sleep':
+        d['c'] = 250
     # use the SDK to invoke the lambda function because the AWS Gateway for
     # invoking Lambda via HTTP has a 30sec timeout (too short for our tests)
     import boto3
