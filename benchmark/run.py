@@ -360,20 +360,20 @@ def make_request(benchmark, url):
     d = dict((k, v[0]) for k, v in urlparse.parse_qs(qparams).iteritems())
     d['isAWS'] = True
     d['hostname'] = benchmark.host
-    # AWS Gateway max timeout is 30sec; so to run longer tests we have to use
-    # the command line to run the function instead.
-    try:
-        os.unlink('out')
-    except:
-        if os.path.exists('out'):
-            raise
-    output = json.loads(subprocess.check_output([
-        'aws', 'lambda', 'invoke', '--function-name', 'run-benchmark',
-        '--payload', json.dumps(d), 'out']))
-    if output['StatusCode'] != 200:
-        return FakeResp(json.dumps(output), output['StatusCode'])
-    content = json.loads(open('out', 'r').read())
-    return FakeResp(content, 200)
+    # use the SDK to invoke the lambda function because the AWS Gateway for
+    # invoking Lambda via HTTP has a 30sec timeout (too short for our tests)
+    import boto3
+    from botocore.client import Config
+    config = Config(read_timeout=600, retries=dict(max_attempts=0))
+    client = boto3.client('lambda', config=config)
+    resp = client.invoke(
+        FunctionName='run-benchmark',
+        LogType='None',
+        Payload=json.dumps(d),
+    )
+    if resp['StatusCode'] != 200:
+        return FakeResp(json.dumps(resp), resp['StatusCode'])
+    return FakeResp(json.loads(resp['Payload'].read()), resp['StatusCode'])
 
 
 def log(s, *args):

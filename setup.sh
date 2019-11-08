@@ -26,7 +26,7 @@ if [ $pnamesz -gt 13 ]; then
     exit 1
 fi
 
-pip install --upgrade google-auth-oauthlib requests
+pip install --upgrade google-auth-oauthlib requests boto3
 gcloud components install beta
 gcloud components update
 
