@@ -5,3 +5,5 @@ deploy.sh
 node_modules
 *.py
 *.tsv
+*.zip
+package*.json
