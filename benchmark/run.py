@@ -3,11 +3,13 @@
 import argparse
 from collections import defaultdict, namedtuple
 import datetime
+import json
 import os
 import re
 import subprocess
 import threading
 import time
+import urlparse
 
 import requests
 
@@ -22,7 +24,6 @@ ICLASSES = ('f1', 'f2', 'f4')
 BENCHMARKER_URL_FMT = (
     'https://us-central1-%s.cloudfunctions.net'
     '/runBenchmark?project=%s&secs=%d&test=%s&service=%s&version=%s&c=%s')
-
 PendingRequest = namedtuple('PendingRequest', ('url', 'future'))
 Benchmark = namedtuple('Benchmark', ('service', 'version', 'test'))
 CloudRunBenchmark = namedtuple('CloudRunBenchmark', (
@@ -32,6 +33,13 @@ FILE_LOCK = threading.Lock()
 PRINT_LOCK = threading.Lock()
 SHUTDOWN_LOCK = threading.Lock()
 KILL_FLAG = False
+
+FargateBenchmark = namedtuple('FargateBenchmark', (
+    'service', 'host', 'test'))
+FARGATE_HOST = 'aws-benchmark.pocketgems.com'
+LAMBDA_TEST_URL = ('https://ldvy1p0dy6.execute-api.us-west-2.amazonaws.com'
+                   '/prod/RunBenchmark')
+
 
 
 PY3_ENTRY_TYPES_FOR_WSGI = (
@@ -97,6 +105,11 @@ def get_managed_cloud_run_url(service):
 def get_benchmarks(tests, limit_to_versions):
     """Returns a list of benchmarks to run."""
     greenlit = []
+    for test in (tests & TESTS) - set(['txtask']):
+        service = 'fargate-node10-fastify'
+        if not is_version_ignored(limit_to_versions, service):
+            greenlit.append(FargateBenchmark(service, FARGATE_HOST, test))
+
     for machine_type in CLOUD_RUN_MACHINE_TYPES:
         if machine_type != 'managed':
             ip_fn = os.path.join(
@@ -256,7 +269,7 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn,
         list_cmd = (cmd % 'list').split()
         delete_cmd = ((cmd % 'delete') + ' --quiet').split()
     else:
-        base_url = benchmark.base_url
+        base_url = getattr(benchmark, 'base_url', 'https://fargatePlaceholder')
         scheme, hostname = base_url.split('://', 1)
         extra_qs = '&hostname=' + hostname
         if scheme == 'http':
@@ -290,7 +303,7 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn,
             # note: this request is for the no-op url (not measuring processing
             #       time here, just startup time)
             my_log('warming up')
-            resp = requests.get(one_request_benchmarker_url)
+            resp = make_request(benchmark, one_request_benchmarker_url)
             if resp.status_code != 200:
                 raise Exception('got HTTP %d error' % resp.status_code)
             x = resp.content.split('\t')
@@ -304,15 +317,15 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn,
             if 'json' in test:
                 dbjson_url = one_request_benchmarker_url.replace(
                     '/test/noop', '/test/dbjson')
-                requests.get(dbjson_url)  # ignore response
-                resp = requests.get(dbjson_url)
+                make_request(benchmark, dbjson_url)  # ignore response
+                resp = make_request(benchmark, dbjson_url)  # ignore response
                 if resp.status_code != 200:
                     raise Exception(
                         'got HTTP %d error while preparing %s' % (
                             resp.status_code, test))
 
             # run the benchmark
-            resp = requests.get(full_test_benchmarker_url)
+            resp = make_request(benchmark, full_test_benchmarker_url)
             if resp.status_code != 200:
                 raise Exception('got HTTP %d error' % resp.status_code)
             results_line = resp.content + '\t' + startup_millis
@@ -332,6 +345,25 @@ def run_benchmark(benchmark, secs, project, num_left, results_fn,
                 log('giving up on %s', context)
                 break
             time.sleep(30)
+
+
+FakeResp = namedtuple('FakeResp', ('content', 'status_code'))
+
+
+def make_request(benchmark, url):
+    """Makes a request to the appropriate benchmarking cloud function."""
+    if not isinstance(benchmark, FargateBenchmark):
+        # url defaults to GCP
+        return requests.get(url)
+    # need to make a different request to benchmark with Lambda
+    qparams = url[url.index('?') + 1:]
+    d = dict((k, v[0]) for k, v in urlparse.parse_qs(qparams).iteritems())
+    d['isAWS'] = True
+    d['hostname'] = benchmark.host
+    resp = requests.post(LAMBDA_TEST_URL, data=json.dumps(d))
+    if resp.status_code == 200:
+        resp = FakeResp(json.loads(resp.content), resp.status_code)
+    return resp
 
 
 def log(s, *args):
