@@ -264,6 +264,9 @@ def aggregate_files(filenames):
         if benchmark.test in ('json', 'txtask'):
             hybrid_results.setdefault(key, {})[benchmark.test] = stats
 
+    include_hybrid = False
+    if not include_hybrid:
+        hybrid_results = {}
     for bmark, v in hybrid_results.items():
         values = ['hybrid-json+txtask'] + list(bmark)
         for k in METRICS:
