@@ -26,7 +26,7 @@ def create_matrix(rows):
     for row in rows:
         x = deployments.setdefault((row.service, row.version), {})
         metric = get_primary_metric(row.test)
-        x[row.test] = getattr(row, metric) / (1 or bests_by_test[row.test])
+        x[row.test] = getattr(row, metric) / bests_by_test[row.test]
 
     # for every deployment, calculate overall % of best (across all tests)
     for x in deployments.values():
