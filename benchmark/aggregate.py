@@ -39,6 +39,10 @@ def get_deployment_category(service, version):
         assert(len(pieces[-2]) == 2)
         machine_type = pieces[-2].upper()
         pieces = pieces[1:-2]
+    elif 'fargate' in deployment_id:
+        platform = 'Fargate'
+        machine_type = 'auto'
+        pieces = pieces[2:]
     else:
         platform = 'GAE v2'
         machine_type = 'F1'
