@@ -25,7 +25,7 @@ likely cost at least many hundreds of dollars.
   * The `platforms` folder contains the code being benchmarked. There are
     implementations for each test in both JavaScript and
     Python. Implementations cover GAE Standard v1 and v2, as well as Cloud Run
-    Managed and on Athos. Many copies are deployed so that many tests can be
+    Managed and on Anthos and AWS ECS Fargate. Many copies are deployed so that many tests can be
     run in parallel. There are also many permutations to test various
     configurations. Deployed services are configured to only allow a single
     instance so we can benchmark per-instance performance (not the services
