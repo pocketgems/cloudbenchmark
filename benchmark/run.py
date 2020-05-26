@@ -99,7 +99,7 @@ def get_managed_cloud_run_url(service):
             if url:
                 out[service_id] = url
         CR_URLS = out
-    return CR_URLS[service.replace('-json', '-dbjson')]
+    return CR_URLS.get(service.replace('-json', '-dbjson'), None)
 
 
 def get_benchmarks(tests, limit_to_versions):
@@ -139,7 +139,7 @@ def get_benchmarks(tests, limit_to_versions):
                         base_url = get_managed_cloud_run_url(service)
                     else:
                         base_url = 'http://' + cluster_ip
-                    if not is_version_ignored(limit_to_versions, service):
+                    if base_url and not is_version_ignored(limit_to_versions, service):
                         greenlit.append(CloudRunBenchmark(
                             service, base_url, test))
     # GAE

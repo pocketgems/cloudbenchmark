@@ -31,9 +31,8 @@ class AbstractDeployer(object):
         self.groups = []
 
     def deploy_all(self):
-        count = 0
         for group in self.groups:
-            count = group.deploy_all(count, self.limit_to_deploy_uids)
+            group.deploy_all(self.limit_to_deploy_uids)
 
     def print_stats(self):
         all_categories = set()
@@ -71,7 +70,8 @@ class AbstractDeploymentGroup(object):
                 return False
         return True
 
-    def deploy_all(self, count, limit_to_deploy_uids):
+    def deploy_all(self, limit_to_deploy_uids):
+        count = 0
         deployments = [
             x for x in self.deployments
             if not self.is_ignored(limit_to_deploy_uids, x.deployment_uid)]
@@ -91,7 +91,6 @@ class AbstractDeploymentGroup(object):
                 count += 1
                 print 'deployment #%d of %d completed' % (
                     count, len(deployments))
-        return count
 
     def print_stats(self, limit_to_deploy_uids):
         all_categories = set([])
@@ -240,8 +239,12 @@ class CloudRunDeployer(AbstractDeployer):
         cloud_build_template = open(
             'cloud_run/cloudbuild-template.yaml', 'r').read()
         with open('cloudbuild.yaml', 'w') as fout:
-            fout.write(cloud_build_template.replace('IMAGENAME',
-                                                    image_cfg.name))
+            template = cloud_build_template
+            template = template.replace('IMAGENAME',
+                                        image_cfg.name)
+            template = template.replace('PROJECTNAME',
+                                        self.project_name)
+            fout.write(template)
         # build the image
         print 'building image %s' % image_cfg.name
         subprocess.check_call(['gcloud', 'builds', 'submit'])
@@ -355,7 +358,7 @@ class CloudRunDeploymentGroup(AbstractDeploymentGroup):
                 '--platform', 'gke',
                 '--cluster', 'cluster-%s' % self.machine_type,
                 '--cluster-location', zone,
-                '--timeout', '900',
+                '--timeout', '600',
                 '--cpu', '1.0',
                 '--memory', '512Mi']
 
@@ -642,9 +645,10 @@ def queue_gae_standard_node_deployments(deployer):
 
     Total Versions = 2 * 6 = 12
     """
-    for framework in ('express', 'fastify'):
-        deployer.add_deploy('node10', framework,
-                            Entrypoint('f1-solo', None), TESTS)
+    deployer.add_deploy('node10', 'express',
+                        Entrypoint('f1-solo', None), TESTS)
+    deployer.add_deploy('node10', 'fastify',
+                        Entrypoint('f1-solo', None), TESTS)
     deployer.add_deploy('node12', 'fastify',
                         Entrypoint('f1-solo', None), TESTS)
 
