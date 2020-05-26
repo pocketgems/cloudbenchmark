@@ -81,7 +81,7 @@ for start in `seq 0 2`; do
     cat ./platforms/gae_standard/${runtime}/template.yaml $generatedYamlFN \
         > ./platforms/gae_standard/${runtime}/template-generated.yaml
 done
-rm generatedYamlFN
+rm $generatedYamlFN
 # cloud run needs redis connection info too
 echo "ENV REDIS_HOST $redishost" > ./platforms/cloud_run/.redis_info
 echo "ENV REDIS_PORT $redisport" >> ./platforms/cloud_run/.redis_info
@@ -114,23 +114,31 @@ gcloud tasks queues create test \
 # create service account for our GKE clusters to use to access datastore, task
 # queue, redis and stackdriver
 gcloud iam service-accounts create forcloudrun
+
+member="serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com"
 gcloud projects add-iam-policy-binding $PROJECTNAME \
-    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --member $member \
     --role "roles/cloudtasks.enqueuer"
 gcloud projects add-iam-policy-binding $PROJECTNAME \
-    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --member $member \
     --role "roles/datastore.user"
 gcloud projects add-iam-policy-binding $PROJECTNAME \
-    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --member $member \
+    --role "roles/storage.objectViewer"
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member $member \
+    --role "roles/spanner.databaseUser"
+gcloud projects add-iam-policy-binding $PROJECTNAME \
+    --member $member \
     --role "roles/redis.editor"
 gcloud projects add-iam-policy-binding $PROJECTNAME \
-    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --member $member \
     --role "roles/logging.logWriter"
 gcloud projects add-iam-policy-binding $PROJECTNAME \
-    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --member $member \
     --role "roles/monitoring.metricWriter"
 gcloud projects add-iam-policy-binding $PROJECTNAME \
-    --member "serviceAccount:forcloudrun@$PROJECTNAME.iam.gserviceaccount.com" \
+    --member $member \
     --role "roles/stackdriver.resourceMetadata.writer"
 # need to be able to access builds in order to deploy them
 gsutil iam ch serviceAccount:forcloudrun@${PROJECTNAME}.iam.gserviceaccount.com:objectViewer gs://artifacts.${PROJECTNAME}.appspot.com
@@ -170,7 +178,7 @@ for start in `seq 0 1`; do
            --min-nodes=0 \
            --max-nodes=100 \
            --num-nodes=3 \
-           --service-account=forcloudrun@benchmarkgcp2.iam.gserviceaccount.com
+           --service-account=forcloudrun@$PROJECTNAME.iam.gserviceaccount.com
 done
 # clusters take some time to startup, so we create the clusters and then we try
 # to get their IPs later
@@ -184,12 +192,12 @@ for start in `seq 0 1`; do
     fi
     clusterName=cluster-$machineType
     # get the public IP address through which we can access our service
-    kubectl get service istio-ingressgateway --namespace istio-system \
+    kubectl get service istio-ingress --namespace gke-system \
             --cluster gke_${PROJECTNAME}_${zone}_${clusterName} \
             --output='jsonpath={.status.loadBalancer.ingress[0].ip}' \
             > platforms/cloud_run/clusterip_${machineType}.txt
     # don't need this (default) addon
-    gcloud container clusters update $clusterName --update-addons=KubernetesDashboard=DISABLED
+    gcloud container clusters update $clusterName --update-addons=KubernetesDashboard=DISABLED --zone=$zone
 done
 
 # cloud run
@@ -197,8 +205,30 @@ gcloud services enable run.googleapis.com
 # alpha required to be able to update cloud run service yamls
 gcloud components install alpha --quiet
 
+echo "Setting up spanner db"
+gcloud services enable spanner.googleapis.com
+gcloud spanner instances create default \
+    --config=regional-us-central1 \
+    --description="Default spanner instance" \
+    --nodes=1
+gcloud spanner databases create default \
+    --instance=default \
+    --ddl="CREATE TABLE JSCounter (id STRING(256), count INT64) PRIMARY KEY(id); \
+           CREATE TABLE BigJsonHolder (id STRING(256), data STRING(2621440)) PRIMARY KEY(id); \
+           CREATE TABLE OneInt (id INT64) PRIMARY KEY(id); \
+           CREATE TABLE JSTxDoneSentinel (id STRING(256)) PRIMARY KEY(id);" \
+echo "Populating spanner db tables..."
+for i in $(seq 0 9); do
+    values="($((i * 1000)))"
+    for j in $(seq 1 999); do
+        values="$values, ($((i * 1000 + j)))"
+    done
+    gcloud spanner databases execute-sql default \
+        --instance=default \
+        --sql="INSERT OneInt (id) VALUES $values"
+done
 
-./platforms/gae_standard/deploy.py $PROJECTNAME
+./platforms/deploy.py $PROJECTNAME
 pushd benchmark
 ./deploy.sh
 popd
