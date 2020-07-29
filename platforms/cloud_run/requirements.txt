@@ -9,7 +9,7 @@ googleapis-common-protos
 google-cloud-logging
 uwsgi
 falcon
-uvicorn==0.9
+uvicorn==0.11.7
 aioify
 fastapi
 ujson
