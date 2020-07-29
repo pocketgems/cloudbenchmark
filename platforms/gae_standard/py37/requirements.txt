@@ -11,7 +11,7 @@ googleapis-common-protos
 google-cloud-logging
 uwsgi
 meinheld
-uvicorn==0.9
+uvicorn==0.11.7
 orjson
 fastapi
 falcon
