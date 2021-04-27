@@ -3,7 +3,7 @@
     "async-redis": "^1.1.7",
     "aws-sdk": "latest",
     "fastify": "^2.8.0",
-    "redis": "^2.8.0",
+    "redis": "^3.1.1",
     "uuid": "^3.3.3"
   },
   "scripts": {
