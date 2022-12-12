@@ -4,7 +4,7 @@
     "@google-cloud/tasks": "^1.4.0",
     "@google-cloud/spanner": "^5.0.0",
     "async-redis": "^1.1.7",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-async-handler": "^1.1.4",
     "fastify": "^2.8.0",
     "redis": "^2.8.0",
